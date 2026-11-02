@@ -16,7 +16,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.civicpulse.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,7 +37,8 @@
         {
           "locationWhenInUsePermission": "CivicPulse records where a hazard is while you report it. Location is only read while the app is open."
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ]
   }
 }

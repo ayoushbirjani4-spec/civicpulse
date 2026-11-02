@@ -5,13 +5,14 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.db import engine
-from app.routers import admin, auth, reports, users
+from app.routers import admin, auth, pins, reports, users
 
 logger = logging.getLogger(__name__)
 app = FastAPI(title="CivicPulse API")
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(reports.router)
+app.include_router(pins.router)
 app.include_router(admin.router)
 
 

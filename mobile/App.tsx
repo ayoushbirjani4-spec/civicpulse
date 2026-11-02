@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import type { RootStack } from './src/navigation';
 import { startUploader } from './src/reports/uploader';
 import { LoginScreen } from './src/screens/LoginScreen';
+import { MapScreen } from './src/screens/MapScreen';
 import { MyReportsScreen } from './src/screens/MyReportsScreen';
 import { NewReportScreen } from './src/screens/NewReportScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -47,6 +48,7 @@ function Routes() {
             })}
           />
           <Stack.Screen name="NewReport" component={NewReportScreen} options={{ title: 'New report' }} />
+          <Stack.Screen name="Map" component={MapScreen} options={{ title: 'Hazard map' }} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
         </>
       ) : (

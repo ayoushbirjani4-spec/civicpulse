@@ -7,6 +7,7 @@ export type RootStack = {
   MyReports: undefined;
   NewReport: undefined;
   Profile: undefined;
+  Map: undefined;
 };
 
 export type ScreenProps<Name extends keyof RootStack> = NativeStackScreenProps<RootStack, Name>;

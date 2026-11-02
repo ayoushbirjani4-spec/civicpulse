@@ -80,6 +80,7 @@ export function MyReportsScreen({ navigation }: ScreenProps<'MyReports'>) {
     <View style={styles.flex}>
       <View style={styles.top}>
         <Button title="Report a hazard" onPress={() => navigation.navigate('NewReport')} />
+        <Button title="Hazard map" secondary onPress={() => navigation.navigate('Map')} />
         <Message text={error} />
       </View>
       <FlatList
