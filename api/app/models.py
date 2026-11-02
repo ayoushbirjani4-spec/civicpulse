@@ -1,8 +1,21 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from geoalchemy2 import Geography
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -55,3 +68,87 @@ class RateLimitCounter(Base):
     key: Mapped[str] = mapped_column(String(255), primary_key=True)
     window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     count: Mapped[int] = mapped_column(Integer)
+
+
+def _point():
+    # The GiST index is declared explicitly in __table_args__ so Alembic sees it.
+    return mapped_column(Geography("POINT", srid=4326, spatial_index=False), nullable=False)
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String(40), unique=True)
+    name: Mapped[str] = mapped_column(String(60))
+    department: Mapped[str] = mapped_column(String(60))
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    sort_order: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+
+
+class Pin(Base):
+    """One physical hazard. Reports point at a pin; a pin never absorbs them (M5 owns merging)."""
+
+    __tablename__ = "pins"
+    __table_args__ = (
+        CheckConstraint("status IN ('open', 'pending_repair', 'closed')", name="ck_pins_status"),
+        Index("ix_pins_location", "location", postgresql_using="gist"),
+        Index("ix_pins_category_status_last", "category_id", "status", "last_reported_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categories.id"))
+    location = _point()
+    avg_accuracy_m: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(20), default="open", server_default="open")
+    severity: Mapped[int | None] = mapped_column(SmallInteger)
+    supporter_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    first_reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    follows_pin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("pins.id"))
+    priority_score: Mapped[float | None] = mapped_column(Float)
+    score_breakdown: Mapped[dict | None] = mapped_column(JSONB)
+    paid_total: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class Report(Base):
+    __tablename__ = "reports"
+    __table_args__ = (
+        CheckConstraint("state IN ('received', 'merged', 'rejected')", name="ck_reports_state"),
+        CheckConstraint("accuracy_m > 0", name="ck_reports_accuracy"),
+        Index("ix_reports_location", "location", postgresql_using="gist"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Generated on the phone, so an upload retried after a lost reply is the same report.
+    client_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    pin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("pins.id"), index=True)
+    category_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("categories.id"))
+    description: Mapped[str | None] = mapped_column(Text)
+    location = _point()
+    accuracy_m: Mapped[float] = mapped_column(Float)
+    is_mocked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    state: Mapped[str] = mapped_column(String(20), default="received", server_default="received")
+    merge_decision: Mapped[dict | None] = mapped_column(JSONB)
+
+
+class Image(Base):
+    __tablename__ = "images"
+    __table_args__ = (CheckConstraint("kind IN ('report', 'repair_after')", name="ck_images_kind"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("reports.id"), index=True)
+    pin_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("pins.id"), index=True)
+    uploader_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    storage_name: Mapped[str] = mapped_column(String(40), unique=True)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    phash: Mapped[str] = mapped_column(String(16), index=True)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
+    taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -52,16 +52,18 @@ type ButtonProps = {
   title: string;
   onPress: () => void;
   busy?: boolean;
+  disabled?: boolean;
   secondary?: boolean;
 };
 
-export function Button({ title, onPress, busy, secondary }: ButtonProps) {
+export function Button({ title, onPress, busy, disabled, secondary }: ButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={busy}
+      accessibilityState={{ disabled: busy || disabled, busy }}
+      disabled={busy || disabled}
       onPress={onPress}
-      style={[styles.button, secondary && styles.secondary, busy && styles.busy]}
+      style={[styles.button, secondary && styles.secondary, (busy || disabled) && styles.busy]}
     >
       {busy ? (
         <ActivityIndicator color={secondary ? PRIMARY : '#fff'} />

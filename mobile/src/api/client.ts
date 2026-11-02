@@ -28,13 +28,15 @@ export function setSessionExpiredHandler(handler: () => void) {
 
 async function send(path: string, { method = 'GET', body }: Options, token: string | null) {
   const headers: Record<string, string> = { 'X-Device-Id': await session.getDeviceId() };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const isForm = body instanceof FormData;
+  // fetch sets the multipart boundary itself, so a form must not get a Content-Type here.
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
   try {
     return await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw new NetworkError('network_error');

@@ -4,6 +4,8 @@ export type RootStack = {
   Login: { email?: string; notice?: string } | undefined;
   Register: undefined;
   VerifyCode: { email: string };
+  MyReports: undefined;
+  NewReport: undefined;
   Profile: undefined;
 };
 

@@ -22,7 +22,21 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "CivicPulse uses the camera to photograph road hazards you report.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "CivicPulse records where a hazard is while you report it. Location is only read while the app is open."
+        }
+      ]
     ]
   }
 }

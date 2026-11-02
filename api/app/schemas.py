@@ -64,3 +64,35 @@ class ProfilePatch(BaseModel):
 class DeviceIn(BaseModel):
     device_id: str = Field(min_length=8, max_length=128)
     push_token: str | None = Field(default=None, max_length=255)
+
+
+class CategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    department: str
+
+
+class ReportOut(BaseModel):
+    id: uuid.UUID
+    client_uuid: uuid.UUID
+    pin_id: uuid.UUID | None
+    category_id: uuid.UUID
+    category_name: str
+    description: str | None
+    lat: float
+    lng: float
+    accuracy_m: float
+    is_mocked: bool
+    captured_at: datetime
+    created_at: datetime
+    state: str
+    photo_url: str | None
+
+
+class ReportPage(BaseModel):
+    items: list[ReportOut]
+    limit: int
+    offset: int

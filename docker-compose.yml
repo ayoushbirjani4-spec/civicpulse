@@ -37,6 +37,9 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
       SMTP_FROM: ${SMTP_FROM:-CivicPulse <no-reply@civicpulse.local>}
+      MEDIA_DIR: /data/media
+      # Where clients fetch photos from. Use your LAN address when testing on a phone.
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:-http://localhost:8001}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -44,7 +47,22 @@ services:
         condition: service_healthy
     volumes:
       - ./api:/app
+      - media:/data/media
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app"
+
+  # Serves stored photos from a different origin than the API and dashboard (Module 3).
+  media:
+    build:
+      context: ./api
+    environment:
+      MEDIA_DIR: /data/media
+    ports:
+      - "${MEDIA_PORT:-8001}:8001"
+    volumes:
+      - ./api:/app
+      - media:/data/media:ro
+    command: uvicorn app.media:media_app --host 0.0.0.0 --port 8001
 
 volumes:
   pgdata:
+  media:

@@ -1,6 +1,8 @@
 # CivicPulse mobile app
 
-React Native with Expo. Module 1 adds Register, Verify code, Login and Profile.
+React Native with Expo. Module 1 adds Register, Verify code, Login and Profile. Module 2
+adds My Reports and New Report: in-app camera, category picker, GPS position with its
+accuracy and mock-location flag, and an offline queue that uploads when signal returns.
 
 ## Run it on your phone
 
@@ -34,5 +36,11 @@ npx tsc --noEmit
 - Tokens and the cached profile are kept in Expo SecureStore. A saved session survives an
   app restart and works with no signal. Only a refresh token the server rejects logs the
   user out.
+- Reports are saved in SQLite with their photo in the app's document folder, and leave the
+  phone only after the server confirms them. Retries back off from 30 seconds to 30
+  minutes. A rejected report (for example, an unreadable photo) stays listed so you can
+  discard it.
+- Location is requested only while the app is open.
+- If Metro crashes on a low-memory computer, start it with `npx expo start --max-workers 1`.
 - `push_token` is sent as `null` for now. Module 7 fills it in, using an EAS development
   build.

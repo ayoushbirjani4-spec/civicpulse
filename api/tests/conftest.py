@@ -5,6 +5,7 @@
 """
 
 import os
+import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -16,6 +17,7 @@ _server_url, _db_name = _base_url.rsplit("/", 1)
 _test_db = f"{_db_name}_test"
 os.environ["DATABASE_URL"] = f"{_server_url}/{_test_db}"
 os.environ.setdefault("JWT_SECRET", "test-secret-with-enough-length-for-hs256")
+os.environ["MEDIA_DIR"] = tempfile.mkdtemp(prefix="civicpulse-media-")
 
 from alembic import command
 from alembic.config import Config
@@ -47,7 +49,9 @@ def database():
 @pytest.fixture(autouse=True)
 def clean_tables(database):
     with engine.begin() as conn:
-        conn.execute(text("TRUNCATE users, devices, email_otps, rate_limit_counters CASCADE"))
+        conn.execute(
+            text("TRUNCATE users, devices, email_otps, rate_limit_counters, images, reports, pins CASCADE")
+        )
 
 
 @pytest.fixture

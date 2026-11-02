@@ -17,3 +17,10 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_STARTTLS = os.environ.get("SMTP_STARTTLS", "false").lower() == "true"
 SMTP_FROM = os.environ.get("SMTP_FROM", "CivicPulse <no-reply@civicpulse.local>")
+
+MEDIA_DIR = os.environ.get("MEDIA_DIR", "/data/media")
+# Must differ from the dashboard's origin. A phone needs the computer's LAN address here.
+MEDIA_BASE_URL = os.environ.get("MEDIA_BASE_URL", "http://localhost:8001").rstrip("/")
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_IMAGE_SIDE = 1600
+DAILY_UPLOAD_CAP = 50

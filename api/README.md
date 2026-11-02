@@ -15,6 +15,7 @@ Migrations run when the API container starts.
 | What | Where |
 | --- | --- |
 | API docs (the live API contract) | http://localhost:8000/docs |
+| Media origin, for stored photos | http://localhost:8001/media/{name}.jpg |
 | Development inbox, for verification codes | http://localhost:8025 |
 
 ## Common tasks
@@ -49,6 +50,31 @@ docker compose exec api alembic revision --autogenerate -m "describe the change"
 | `GET`, `PATCH /me` | Read or edit your profile | User |
 | `POST /devices` | Register this phone | User |
 | `GET /admin/ping` | Check admin access | Admin |
+
+## Module 2: hazard reports
+
+| Route | Purpose | Auth |
+| --- | --- | --- |
+| `GET /categories` | Active hazard categories | User |
+| `POST /reports` | Submit a report (multipart: `photo`, `category_id`, `lat`, `lng`, `accuracy_m`, `is_mocked`, `captured_at`, `client_uuid`, `description`) | User |
+| `GET /reports/mine` | Your reports, newest first (`limit`, `offset`) | User |
+| `GET /reports/{id}` | One report; others get 404 unless admin | User |
+
+Sending the same `client_uuid` again returns the original report with status 200, so an
+upload retried after a lost reply never creates a second report. Until Module 5 adds the
+merge engine, every report gets its own new pin.
+
+## Module 3: image handling
+
+`app/images.py` is the only code that writes photo files. Each upload is checked by its
+content (JPEG, PNG or WebP, at most 5 MB), decoded, resized to 1600 px on the long side,
+re-encoded as a JPEG with no camera data, and saved under a random name. It records the
+SHA-256 of the stored bytes and a 64-bit difference hash that still matches after
+re-compression. Each account may upload 50 photos a day.
+
+Photos are served by a separate app, `app/media.py`, on port 8001, with `nosniff` and a
+locked-down content policy. Set `MEDIA_BASE_URL` in `.env` to your LAN address when
+testing on a phone.
 
 For new routes, use these from `app/deps.py`:
 
