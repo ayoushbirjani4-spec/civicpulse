@@ -64,6 +64,17 @@ Sending the same `client_uuid` again returns the original report with status 200
 upload retried after a lost reply never creates a second report. Until Module 5 adds the
 merge engine, every report gets its own new pin.
 
+## Module 4: hazard map
+
+| Route | Purpose | Auth |
+| --- | --- | --- |
+| `GET /pins` | Pins inside `bbox=minLng,minLat,maxLng,maxLat`, as GeoJSON; filters `category`, `status` (default `open,pending_repair`); at most 500, with `truncated` set when there are more | User |
+| `GET /pins/{id}` | One pin with up to 6 recent photo URLs | User |
+
+Public positions are rounded to 4 decimal places (about 11 m), because until Module 5 a pin
+sits exactly where its reporter stood. Admins receive the exact position. No pin response
+names a reporter.
+
 ## Module 3: image handling
 
 `app/images.py` is the only code that writes photo files. Each upload is checked by its

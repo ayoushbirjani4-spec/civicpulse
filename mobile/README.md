@@ -3,6 +3,8 @@
 React Native with Expo. Module 1 adds Register, Verify code, Login and Profile. Module 2
 adds My Reports and New Report: in-app camera, category picker, GPS position with its
 accuracy and mock-location flag, and an offline queue that uploads when signal returns.
+Module 4 adds the hazard map: clustered pins with supporter counts, status and category
+filters, a Near me button, and a detail sheet with the pin's recent photos.
 
 ## Run it on your phone
 
@@ -24,6 +26,31 @@ npx expo start
    Wi-Fi, and Windows Firewall must allow port 8000.
 
 In development, verification codes arrive at http://localhost:8025.
+
+## The hazard map needs a development build
+
+Module 4's map uses MapLibre, which is native code that Expo Go does not include. In Expo
+Go the rest of the app works, and the Hazard map screen explains that it needs this build.
+
+Build it once per phone with EAS (free Expo account; the build runs in the cloud):
+
+```bash
+npx eas-cli@latest build --profile development --platform android
+```
+
+Install the APK it links to, then start Metro for the development build instead of Expo Go:
+
+```bash
+npx expo start --dev-client --max-workers 1
+```
+
+Open the CivicPulse app on the phone (not Expo Go) and pick this computer's server. Rebuild
+only when native packages change; JavaScript changes reload as before. With Android Studio
+installed, `npx expo run:android` builds locally instead.
+
+The map uses the public OpenStreetMap tile server and MapLibre's demo font server. Both are
+fine for development and the demonstration, but not for heavy or public traffic; switch to
+a hosted tile provider before any wider trial.
 
 Check the code before opening a pull request:
 

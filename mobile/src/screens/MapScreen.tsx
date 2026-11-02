@@ -1,4 +1,6 @@
-import { Camera, GeoJSONSource, Layer, Map as MapLibreMap } from '@maplibre/maplibre-react-native';
+import { Camera, GeoJSONSource, Layer, Map as MapLibreMap, UserLocation } from '@maplibre/maplibre-react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import { ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -35,12 +37,15 @@ type PinProps = {
   supporter_count: number;
   category_id: string;
   category_name: string;
+  follows_pin_id: string | null;
   thumbnail_url: string | null;
+  photo_urls?: string[];
 };
 
 type PinCollection = {
   type: 'FeatureCollection';
   features: { type: 'Feature'; geometry: { type: 'Point'; coordinates: [number, number] }; properties: PinProps }[];
+  truncated?: boolean;
 };
 
 const EMPTY: PinCollection = { type: 'FeatureCollection', features: [] };
@@ -82,6 +87,7 @@ export function MapScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<PinStatus[]>(DEFAULT_STATUSES);
+  const [showMe, setShowMe] = useState(false);
 
   useEffect(() => {
     // Without categories the map still works; the category chips just stay hidden.
@@ -94,6 +100,8 @@ export function MapScreen() {
     const request = ++requestRef.current;
     if (statuses.length === 0) {
       setPins(EMPTY);
+      // This replaces any request still in flight, so it must clear that request's spinner too.
+      setLoading(false);
       return;
     }
     const params = new URLSearchParams({ bbox, status: statuses.join(',') });
@@ -111,10 +119,32 @@ export function MapScreen() {
     }
   }, [statuses, categoryId]);
 
-  // A changed filter fetches again for the same view.
+  // Fetch again when a filter changes, and when the user comes back from reporting a hazard.
+  useFocusEffect(
+    useCallback(() => {
+      loadPins();
+    }, [loadPins]),
+  );
+
+  // Location is read only while this screen is open, as for reporting.
+  const centreOnMe = useCallback(async (askIfNeeded: boolean) => {
+    const current = await Location.getForegroundPermissionsAsync();
+    const granted = current.granted || (askIfNeeded && (await Location.requestForegroundPermissionsAsync()).granted);
+    setShowMe(granted);
+    if (!granted) {
+      if (askIfNeeded) setError('Allow location in Settings to centre the map on you.');
+      return;
+    }
+    const here =
+      (await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000 })) ??
+      (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+    cameraRef.current?.flyTo({ center: [here.coords.longitude, here.coords.latitude], zoom: 15, duration: 600 });
+  }, []);
+
   useEffect(() => {
-    loadPins();
-  }, [loadPins]);
+    // Start near the user when they have already allowed location; otherwise stay on Sukkur.
+    centreOnMe(false).catch(() => {});
+  }, [centreOnMe]);
 
   useEffect(
     () => () => {
@@ -149,7 +179,15 @@ export function MapScreen() {
       cameraRef.current?.setStop({ center: feature.geometry.coordinates, zoom: zoom ?? 15, duration: 500 });
       return;
     }
-    setSelected(feature.properties as PinProps);
+    const pin = feature.properties as PinProps;
+    setSelected(pin);
+    // The detail route adds the pin's recent photos; the sheet already shows what the list had.
+    try {
+      const detail = await api<{ properties: PinProps }>(`/pins/${pin.id}`);
+      setSelected((current) => (current?.id === pin.id ? detail.properties : current));
+    } catch {
+      // Keep the summary from the list.
+    }
   }, []);
 
   const toggleStatus = (status: PinStatus) =>
@@ -166,6 +204,7 @@ export function MapScreen() {
         onPress={() => setSelected(null)}
       >
         <Camera ref={cameraRef} initialViewState={{ center: SUKKUR_CENTER, zoom: 13 }} />
+        {showMe ? <UserLocation accuracy /> : null}
 
         <GeoJSONSource
           id="pins"
@@ -241,7 +280,17 @@ export function MapScreen() {
           </ScrollView>
         )}
         {loading && <ActivityIndicator style={styles.loader} />}
+        {pins.truncated ? <Text style={styles.notice}>Showing the newest 500 hazards here. Zoom in to see the rest.</Text> : null}
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Centre the map on my location"
+        style={styles.meButton}
+        onPress={() => centreOnMe(true).catch(() => setError('Could not find your position.'))}
+      >
+        <Text style={styles.meText}>Near me</Text>
+      </Pressable>
 
       <Text style={styles.attribution}>{'© OpenStreetMap contributors'}</Text>
 
@@ -253,8 +302,19 @@ export function MapScreen() {
 
       {selected && (
         <View style={styles.sheet}>
-          {selected.thumbnail_url ? <Image source={{ uri: selected.thumbnail_url }} style={styles.thumb} /> : null}
+          {selected.photo_urls && selected.photo_urls.length > 1 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
+              {selected.photo_urls.map((uri) => (
+                <Image key={uri} source={{ uri }} style={styles.photo} />
+              ))}
+            </ScrollView>
+          ) : selected.thumbnail_url ? (
+            <Image source={{ uri: selected.thumbnail_url }} style={styles.thumb} />
+          ) : null}
           <Text style={styles.title}>{selected.category_name}</Text>
+          {selected.follows_pin_id ? (
+            <Text style={styles.follows}>Reported again where a hazard was marked repaired.</Text>
+          ) : null}
           <Text>Status: {STATUS_LABEL[selected.status] ?? selected.status}</Text>
           <Text>Severity: {selected.severity != null ? `${selected.severity} / 5` : 'Not analysed yet'}</Text>
           <Text>Supporters: {selected.supporter_count}</Text>
@@ -329,6 +389,30 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   thumb: { width: '100%', height: 140, borderRadius: 8, marginBottom: 8 },
+  photoRow: { marginBottom: 8 },
+  photo: { width: 160, height: 120, borderRadius: 8, marginRight: 6 },
+  follows: { color: '#8a5a00', marginBottom: 4 },
+  notice: {
+    marginTop: 6,
+    alignSelf: 'center',
+    backgroundColor: '#fff3cd',
+    color: '#5c4400',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    fontSize: 12,
+  },
+  meButton: {
+    position: 'absolute',
+    right: 12,
+    bottom: 40,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    elevation: 3,
+  },
+  meText: { color: PRIMARY, fontWeight: '600' },
   title: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
   sheetButtons: { flexDirection: 'row', marginTop: 10, gap: 8 },
   button: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: PRIMARY },
