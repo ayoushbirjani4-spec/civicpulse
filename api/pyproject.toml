@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110
+extend-exclude = ["migrations/script.py.mako"]
+
+[tool.ruff.lint]
+# EXE002: files mounted from Windows always look executable.
+# B008: Depends(...) defaults are the FastAPI idiom.
+ignore = ["EXE002", "B008"]

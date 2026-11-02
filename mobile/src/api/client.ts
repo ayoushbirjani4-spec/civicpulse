@@ -1,0 +1,91 @@
+import * as session from '../auth/sessionStore';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+
+/** The server answered with an error. `code` is the server's `detail` string. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(code);
+  }
+}
+
+/** The server could not be reached. The session is still valid; try again later. */
+export class NetworkError extends Error {}
+
+type Options = {
+  method?: 'GET' | 'POST' | 'PATCH';
+  body?: unknown;
+  auth?: boolean;
+};
+
+let onSessionExpired: () => void = () => {};
+export function setSessionExpiredHandler(handler: () => void) {
+  onSessionExpired = handler;
+}
+
+async function send(path: string, { method = 'GET', body }: Options, token: string | null) {
+  const headers: Record<string, string> = { 'X-Device-Id': await session.getDeviceId() };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    return await fetch(`${API_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new NetworkError('network_error');
+  }
+}
+
+async function toError(response: Response): Promise<ApiError> {
+  const data = await response.json().catch(() => null);
+  // FastAPI sends a string for our errors and a list for validation (422) errors.
+  const code = typeof data?.detail === 'string' ? data.detail : 'invalid_input';
+  return new ApiError(response.status, code);
+}
+
+// Screens can fire several requests at once when the access token has just expired;
+// they all wait on one refresh.
+let refreshing: Promise<string | null> | null = null;
+
+function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    const refreshToken = await session.getRefreshToken();
+    if (!refreshToken) return null;
+    const response = await send(
+      '/auth/refresh',
+      { method: 'POST', body: { refresh_token: refreshToken } },
+      null,
+    );
+    if (response.status === 401) return null;
+    if (!response.ok) throw await toError(response);
+    const { access_token } = await response.json();
+    await session.setAccessToken(access_token);
+    return access_token as string;
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+export async function api<T = void>(path: string, options: Options = {}): Promise<T> {
+  const auth = options.auth ?? true;
+  let response = await send(path, options, auth ? await session.getAccessToken() : null);
+
+  if (auth && response.status === 401) {
+    const token = await refreshAccessToken();
+    if (!token) {
+      onSessionExpired();
+      throw new ApiError(401, 'session_expired');
+    }
+    response = await send(path, options, token);
+  }
+
+  if (!response.ok) throw await toError(response);
+  if (response.status === 204) return undefined as T;
+  return response.json();
+}
