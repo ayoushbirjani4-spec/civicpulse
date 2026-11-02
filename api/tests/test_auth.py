@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 from app.config import JWT_SECRET
 from app.db import SessionLocal
 from app.models import EmailOtp, User
-from app.security import create_access_token, create_refresh_token
+from app.security import create_access_token, create_refresh_token, hash_otp
 from tests.conftest import PASSWORD
 
 EMAIL = "ayesha@example.com"
@@ -165,3 +165,19 @@ def test_token_lifetimes_match_the_spec(make_user):
     refresh = jwt.decode(create_refresh_token(user.id), JWT_SECRET, algorithms=["HS256"])
     assert access["exp"] - access["iat"] == 15 * 60
     assert refresh["exp"] - refresh["iat"] == 14 * 24 * 3600
+
+
+
+def test_newest_code_is_checked_when_two_are_active(client, outbox):
+    # Two active codes can exist from before the issuing lock; the newest must be the one that works.
+    client.post("/auth/register", json=SIGNUP)
+    with SessionLocal() as db:
+        user = db.scalar(select(User).where(User.email == EMAIL))
+        db.add(EmailOtp(user_id=user.id, code_hash=hash_otp(user.id, "111111"),
+                        expires_at=datetime.now(UTC) + timedelta(minutes=5)))
+        db.add(EmailOtp(user_id=user.id, code_hash=hash_otp(user.id, "222222"),
+                        expires_at=datetime.now(UTC) + timedelta(minutes=9, seconds=59)))
+        db.query(EmailOtp).filter(EmailOtp.user_id == user.id, EmailOtp.code_hash.notin_(
+            [hash_otp(user.id, "111111"), hash_otp(user.id, "222222")])).update({"used_at": datetime.now(UTC)})
+        db.commit()
+    assert client.post("/auth/verify-email", json={"email": EMAIL, "code": "222222"}).status_code == 200

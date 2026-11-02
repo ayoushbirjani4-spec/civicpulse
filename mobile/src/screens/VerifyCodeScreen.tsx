@@ -8,6 +8,7 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
   const { email } = route.params;
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(`We emailed a 6-digit code to ${email}.`);
 
@@ -25,13 +26,17 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
   }
 
   async function resend() {
+    if (resending) return;
+    setResending(true);
     setError(null);
     try {
       await api('/auth/resend-code', { method: 'POST', auth: false, body: { email } });
       setCode('');
-      setNotice(`We sent a new code to ${email}.`);
+      setNotice(`We sent a new code to ${email}. Only the newest code works.`);
     } catch (e) {
       setError(errorMessage(e));
+    } finally {
+      setResending(false);
     }
   }
 
@@ -48,7 +53,7 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
       />
       <Message text={error} />
       <Button title="Verify" onPress={submit} busy={busy} />
-      <Button title="Send a new code" onPress={resend} secondary />
+      <Button title="Send a new code" onPress={resend} busy={resending} secondary />
     </Screen>
   );
 }

@@ -37,6 +37,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _issue_otp(db: Session, user: User) -> str:
     """Replace any outstanding code with a new one. The caller commits."""
+    # Lock the account first: two resends in the same instant would otherwise each see no
+    # other code and both stay active, and verify could then check the wrong one.
+    db.execute(select(User.id).where(User.id == user.id).with_for_update())
     now = datetime.now(UTC)
     db.execute(
         update(EmailOtp)
@@ -103,6 +106,8 @@ def verify_email(body: VerifyEmailIn, request: Request, db: Session = Depends(ge
     otp = db.scalar(
         select(EmailOtp)
         .where(EmailOtp.user_id == user.id, EmailOtp.used_at.is_(None))
+        .order_by(EmailOtp.expires_at.desc())
+        .limit(1)
         .with_for_update()
     )
     if otp is None:
