@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, Screen } from '../components/ui';
+import { Button, CODE_STYLE, errorMessage, Field, FormHeader, Message, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'>) {
@@ -10,7 +10,7 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(`We emailed a 6-digit code to ${email}.`);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function submit() {
     setBusy(true);
@@ -42,9 +42,16 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
 
   return (
     <Screen>
+      <FormHeader
+        icon="mail-open"
+        title="Check your email"
+        subtitle={`We sent a 6-digit code to ${email}. It can take a minute to arrive.`}
+      />
       <Message text={notice} success />
       <Field
         label="Verification code"
+        style={CODE_STYLE}
+        placeholder="000000"
         value={code}
         onChangeText={setCode}
         autoComplete="one-time-code"
@@ -52,8 +59,8 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
         maxLength={6}
       />
       <Message text={error} />
-      <Button title="Verify" onPress={submit} busy={busy} />
-      <Button title="Send a new code" onPress={resend} busy={resending} secondary />
+      <Button title="Verify and continue" icon="checkmark-circle" onPress={submit} busy={busy} disabled={code.length !== 6} />
+      <Button title="Send a new code" icon="refresh" onPress={resend} busy={resending} link />
     </Screen>
   );
 }

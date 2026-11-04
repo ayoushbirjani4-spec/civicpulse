@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
+import { Button, errorMessage, Field, FormHeader, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
@@ -36,14 +36,23 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
 
   return (
     <Screen>
+      <FormHeader
+        icon="people"
+        title="Join CivicPulse"
+        subtitle="It takes a minute. Every hazard you report helps your city fix roads faster."
+      />
       <Field
         label="Display name (shown on the leaderboard)"
+        icon="person-outline"
+        placeholder="e.g. Ayesha K."
         value={displayName}
         onChangeText={setDisplayName}
         maxLength={40}
       />
       <Field
         label="Email"
+        icon="mail-outline"
+        placeholder="you@example.com"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -52,6 +61,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
       />
       <Field
         label="Password"
+        icon="lock-closed-outline"
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
@@ -59,6 +69,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
       />
       <Field
         label="Confirm password"
+        icon="lock-closed-outline"
         value={confirm}
         onChangeText={setConfirm}
         autoComplete="new-password"
@@ -66,7 +77,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
       />
       <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
-      <Button title="Create account" onPress={submit} busy={busy} />
+      <Button title="Create account" icon="sparkles" onPress={submit} busy={busy} />
     </Screen>
   );
 }

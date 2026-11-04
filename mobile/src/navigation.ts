@@ -6,7 +6,7 @@ export type RootStack = {
   VerifyCode: { email: string };
   ForgotPassword: { email?: string } | undefined;
   ResetPassword: { email: string };
-  MyReports: undefined;
+  MyReports: { thanks?: boolean } | undefined;
   NewReport: undefined;
   Profile: undefined;
   ChangePassword: undefined;

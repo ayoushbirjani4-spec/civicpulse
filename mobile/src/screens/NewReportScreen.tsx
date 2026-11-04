@@ -6,11 +6,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
-import { Button, errorMessage, Field, Message, Screen } from '../components/ui';
+import { Button, Card, errorMessage, Field, FormHeader, Icon, Message, Screen } from '../components/ui';
+import { categoryIcon } from '../impact';
 import type { ScreenProps } from '../navigation';
 import { Category, loadCategories } from '../reports/categories';
 import { enqueue } from '../reports/queue';
 import { processQueue } from '../reports/uploader';
+import { color, font, radius, space } from '../theme';
 
 type Fix = { lat: number; lng: number; accuracy: number; mocked: boolean };
 
@@ -98,7 +100,7 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
         photo_uri: kept.uri,
       });
       processQueue(user.id).catch(() => {});
-      navigation.goBack();
+      navigation.popTo('MyReports', { thanks: true });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -110,8 +112,12 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
   if (!cameraPermission.granted) {
     return (
       <Screen>
-        <Text style={styles.text}>CivicPulse needs the camera to photograph the hazard. Photos are taken in the app only.</Text>
-        <Button title="Allow camera" onPress={requestCameraPermission} />
+        <FormHeader
+          icon="camera"
+          title="Allow the camera"
+          subtitle="CivicPulse needs the camera to photograph the hazard. Photos are taken in the app only."
+        />
+        <Button title="Allow camera" icon="camera-outline" onPress={requestCameraPermission} />
       </Screen>
     );
   }
@@ -120,63 +126,163 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
     return (
       <View style={styles.fill}>
         <CameraView ref={camera} style={styles.fill} facing="back" onCameraReady={() => setReady(true)} />
-        <Text style={styles.tip}>Stand about 2 m away and include a kerb, wall or drain cover.</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Take photo" style={styles.shutter} onPress={capture} />
+        <View style={styles.tip}>
+          <Icon name="bulb" size={18} color={color.accent} />
+          <Text style={styles.tipText}>Stand about 2 m away and include a kerb, wall or drain cover.</Text>
+        </View>
+        <View style={styles.shutterBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Take photo"
+            style={({ pressed }) => [styles.shutter, pressed && styles.shutterPressed]}
+            onPress={capture}
+          >
+            <View style={styles.shutterInner} />
+          </Pressable>
+          <Text style={styles.shutterText}>Tap to take the photo</Text>
+        </View>
       </View>
     );
   }
 
+  const locating = !fix && !locationError;
   return (
     <Screen>
-      <Image source={{ uri: photo.uri }} style={styles.preview} />
-      <Button title="Retake" secondary onPress={() => setPhoto(null)} />
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.chips}>
-        {categories.map((c) => (
-          <Pressable
-            key={c.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected: c.id === categoryId }}
-            onPress={() => setCategoryId(c.id)}
-            style={[styles.chip, c.id === categoryId && styles.chipOn]}
-          >
-            <Text style={c.id === categoryId ? styles.chipTextOn : undefined}>{c.name}</Text>
-          </Pressable>
-        ))}
+      <View>
+        <Image source={{ uri: photo.uri }} style={styles.preview} />
+        <Pressable accessibilityRole="button" style={styles.retake} onPress={() => setPhoto(null)}>
+          <Icon name="camera-reverse" size={16} color={color.onPrimary} />
+          <Text style={styles.retakeText}>Retake</Text>
+        </Pressable>
       </View>
-      <Field label="Note (optional)" value={description} onChangeText={setDescription} maxLength={1000} multiline />
-      <Message
-        text={fix ? `Position recorded, accurate to about ${Math.round(fix.accuracy)} m${fix.mocked ? ' (mock location detected)' : ''}.` : locationError ?? 'Getting your position...'}
-        success={!!fix}
+
+      <Card style={styles.section}>
+        <Text style={font.heading}>What is it?</Text>
+        <View style={styles.chips}>
+          {categories.map((c) => {
+            const on = c.id === categoryId;
+            return (
+              <Pressable
+                key={c.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => setCategoryId(c.id)}
+                style={[styles.chip, on && styles.chipOn]}
+              >
+                <Icon name={categoryIcon(c.name)} size={16} color={on ? color.onPrimary : color.primary} />
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Card>
+
+      <Card style={[styles.section, styles.locationRow]}>
+        <View
+          style={[
+            styles.locationIcon,
+            { backgroundColor: fix ? color.successSoft : locating ? color.infoSoft : color.dangerSoft },
+          ]}
+        >
+          <Icon
+            name={fix ? 'location' : locating ? 'navigate' : 'location-outline'}
+            size={22}
+            color={fix ? color.success : locating ? color.info : color.danger}
+          />
+        </View>
+        <View style={styles.flex1}>
+          <Text style={styles.locationTitle}>
+            {fix ? 'Location locked' : locating ? 'Finding your position...' : 'No location yet'}
+          </Text>
+          <Text style={font.small}>
+            {fix
+              ? `Accurate to about ${Math.round(fix.accuracy)} m${fix.mocked ? '. Mock location detected.' : ''}`
+              : (locationError ?? 'Stay where the hazard is for a moment.')}
+          </Text>
+          {locationError ? <Button title="Try again" link icon="refresh" onPress={locate} /> : null}
+        </View>
+      </Card>
+
+      <Field
+        label="Note (optional)"
+        icon="create-outline"
+        placeholder="e.g. Deep pothole near the bus stop"
+        value={description}
+        onChangeText={setDescription}
+        maxLength={1000}
+        multiline
       />
-      {locationError ? <Button title="Try location again" secondary onPress={locate} /> : null}
       <Message text={error} />
-      <Button title="Send" onPress={send} busy={busy} disabled={!fix || !categoryId} />
-      <Text style={styles.hint}>With no signal, the report waits on this phone and uploads later.</Text>
+      <Button title="Send report" icon="send" onPress={send} busy={busy} disabled={!fix || !categoryId} />
+      <View style={styles.hintRow}>
+        <Icon name="cloud-offline-outline" size={16} color={color.muted} />
+        <Text style={[font.small, styles.flex1]}>With no signal, the report waits on this phone and uploads later.</Text>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#000' },
-  text: { fontSize: 16 },
-  tip: { position: 'absolute', top: 16, left: 16, right: 16, color: '#fff', textAlign: 'center', fontSize: 15 },
-  shutter: {
+  flex1: { flex: 1 },
+  tip: {
     position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 6,
-    borderColor: '#fff',
-    backgroundColor: '#ffffff55',
+    top: space.lg,
+    left: space.lg,
+    right: space.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    backgroundColor: 'rgba(15,27,45,0.72)',
+    borderRadius: radius.md,
+    padding: space.md,
   },
-  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: 8, backgroundColor: '#ddd' },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#0b6e4f', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
-  chipOn: { backgroundColor: '#0b6e4f' },
-  chipTextOn: { color: '#fff' },
-  hint: { color: '#555', fontSize: 13, marginTop: 8 },
+  tipText: { flex: 1, color: '#fff', fontSize: 14, lineHeight: 19 },
+  shutterBar: { position: 'absolute', bottom: 36, left: 0, right: 0, alignItems: 'center', gap: space.sm },
+  shutter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 5,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterPressed: { transform: [{ scale: 0.94 }] },
+  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: color.accent },
+  shutterText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.lg, backgroundColor: color.border },
+  retake: {
+    position: 'absolute',
+    top: space.md,
+    right: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15,27,45,0.7)',
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  retakeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  section: { gap: space.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: color.primarySoft,
+    backgroundColor: color.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  chipOn: { backgroundColor: color.primary, borderColor: color.primary },
+  chipText: { color: color.primaryDark, fontWeight: '600', fontSize: 14 },
+  chipTextOn: { color: color.onPrimary },
+  locationRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  locationIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  locationTitle: { fontSize: 15, fontWeight: '700', color: color.ink },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
 });

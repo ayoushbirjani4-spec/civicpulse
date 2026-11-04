@@ -5,8 +5,10 @@ import { ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { api } from '../api/client';
-import { errorMessage } from '../components/ui';
+import { errorMessage, Icon, IconName } from '../components/ui';
+import { categoryIcon } from '../impact';
 import { Category, loadCategories } from '../reports/categories';
+import { color, radius, shadow, space } from '../theme';
 
 // M4: hazards near the user. One pin per hazard; the badge counts distinct people.
 
@@ -56,6 +58,8 @@ const STATUS_LABEL: Record<PinStatus, string> = {
   closed: 'Closed',
 };
 const ALL_STATUSES: PinStatus[] = ['open', 'pending_repair', 'closed'];
+const STATUS_COLOR: Record<PinStatus, string> = { open: '#E5484D', pending_repair: color.info, closed: color.success };
+const STATUS_ICON: Record<PinStatus, IconName> = { open: 'alert-circle', pending_repair: 'construct', closed: 'checkmark-circle' };
 // Closed pins are hidden until the user asks for them.
 const DEFAULT_STATUSES: PinStatus[] = ['open', 'pending_repair'];
 
@@ -220,7 +224,7 @@ export function MapScreen() {
             type="circle"
             filter={['has', 'point_count']}
             paint={{
-              'circle-color': '#455a64',
+              'circle-color': color.primaryDark,
               'circle-radius': ['step', ['get', 'point_count'], 16, 10, 20, 50, 26],
               'circle-stroke-width': 2,
               'circle-stroke-color': '#fff',
@@ -243,7 +247,15 @@ export function MapScreen() {
             type="circle"
             filter={['!', ['has', 'point_count']]}
             paint={{
-              'circle-color': ['match', ['get', 'status'], 'pending_repair', '#ff9800', 'closed', '#9e9e9e', '#d32f2f'],
+              'circle-color': [
+                'match',
+                ['get', 'status'],
+                'pending_repair',
+                STATUS_COLOR.pending_repair,
+                'closed',
+                STATUS_COLOR.closed,
+                STATUS_COLOR.open,
+              ],
               'circle-radius': 14,
               'circle-stroke-width': 2,
               'circle-stroke-color': '#fff',
@@ -268,18 +280,30 @@ export function MapScreen() {
       <View style={styles.filters}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {ALL_STATUSES.map((s) => (
-            <Chip key={s} label={STATUS_LABEL[s]} active={statuses.includes(s)} onPress={() => toggleStatus(s)} />
+            <Chip
+              key={s}
+              label={STATUS_LABEL[s]}
+              dot={STATUS_COLOR[s]}
+              active={statuses.includes(s)}
+              onPress={() => toggleStatus(s)}
+            />
           ))}
         </ScrollView>
         {categories.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
             <Chip label="All" active={categoryId === null} onPress={() => setCategoryId(null)} />
             {categories.map((c) => (
-              <Chip key={c.id} label={c.name} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
+              <Chip
+                key={c.id}
+                label={c.name}
+                icon={categoryIcon(c.name)}
+                active={categoryId === c.id}
+                onPress={() => setCategoryId(c.id)}
+              />
             ))}
           </ScrollView>
         )}
-        {loading && <ActivityIndicator style={styles.loader} />}
+        {loading && <ActivityIndicator style={styles.loader} color={color.primary} />}
         {pins.truncated ? <Text style={styles.notice}>Showing the newest 500 hazards here. Zoom in to see the rest.</Text> : null}
       </View>
 
@@ -289,6 +313,7 @@ export function MapScreen() {
         style={styles.meButton}
         onPress={() => centreOnMe(true).catch(() => setError('Could not find your position.'))}
       >
+        <Icon name="locate" size={18} color={color.primary} />
         <Text style={styles.meText}>Near me</Text>
       </Pressable>
 
@@ -311,29 +336,43 @@ export function MapScreen() {
           ) : selected.thumbnail_url ? (
             <Image source={{ uri: selected.thumbnail_url }} style={styles.thumb} />
           ) : null}
-          <Text style={styles.title}>{selected.category_name}</Text>
+          <View style={styles.sheetHead}>
+            <Icon name={categoryIcon(selected.category_name)} size={20} color={color.primary} />
+            <Text style={styles.title}>{selected.category_name}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={() => setSelected(null)}>
+              <Icon name="close" size={22} color={color.muted} />
+            </Pressable>
+          </View>
           {selected.follows_pin_id ? (
             <Text style={styles.follows}>Reported again where a hazard was marked repaired.</Text>
           ) : null}
-          <Text>Status: {STATUS_LABEL[selected.status] ?? selected.status}</Text>
-          <Text>Severity: {selected.severity != null ? `${selected.severity} / 5` : 'Not analysed yet'}</Text>
-          <Text>Supporters: {selected.supporter_count}</Text>
-          <View style={styles.sheetButtons}>
-            {/* Starts a confirm mission once M10 exists. */}
-            <Pressable accessibilityRole="button" disabled style={[styles.button, styles.buttonDisabled]}>
-              <Text style={styles.buttonText}>Confirm (coming soon)</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" style={styles.button} onPress={() => setSelected(null)}>
-              <Text style={styles.buttonText}>Close</Text>
-            </Pressable>
+          <View style={styles.facts}>
+            <Fact
+              icon={STATUS_ICON[selected.status] ?? 'help-circle'}
+              tint={STATUS_COLOR[selected.status] ?? color.muted}
+              label={STATUS_LABEL[selected.status] ?? selected.status}
+            />
+            <Fact icon="people" tint={color.info} label={`${selected.supporter_count} reported`} />
+            <Fact
+              icon="speedometer"
+              tint={color.accent}
+              label={selected.severity != null ? `Severity ${selected.severity}/5` : 'Not rated yet'}
+            />
           </View>
+          {/* Starts a confirm mission once M10 exists. */}
+          <Pressable accessibilityRole="button" disabled style={[styles.button, styles.buttonDisabled]}>
+            <Icon name="hand-left" size={18} color={color.onPrimary} />
+            <Text style={styles.buttonText}>Confirm this hazard (coming soon)</Text>
+          </Pressable>
         </View>
       )}
     </View>
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+type ChipProps = { label: string; active: boolean; onPress: () => void; icon?: IconName; dot?: string };
+
+function Chip({ label, active, onPress, icon, dot }: ChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -341,81 +380,124 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
       onPress={onPress}
       style={[styles.chip, active && styles.chipActive]}
     >
+      {dot ? <View style={[styles.dot, { backgroundColor: active ? color.onPrimary : dot }]} /> : null}
+      {icon ? <Icon name={icon} size={14} color={active ? color.onPrimary : color.primary} /> : null}
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
 }
 
-const PRIMARY = '#0b6e4f';
+function Fact({ icon, tint, label }: { icon: IconName; tint: string; label: string }) {
+  return (
+    <View style={styles.fact}>
+      <Icon name={icon} size={16} color={tint} />
+      <Text style={styles.factText}>{label}</Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  filters: { position: 'absolute', top: 10, left: 10, right: 10 },
-  chipRow: { marginTop: 6 },
+  filters: { position: 'absolute', top: space.md, left: space.md, right: space.md },
+  chipRow: { marginTop: space.sm },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#b5bdc4',
-    marginRight: 6,
-    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: space.md,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    backgroundColor: color.card,
+    marginRight: space.sm,
+    ...shadow,
   },
-  chipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
-  chipText: { color: '#333', fontSize: 13 },
-  chipTextActive: { color: '#fff' },
-  loader: { marginTop: 6, alignSelf: 'center' },
+  chipActive: { backgroundColor: color.primary },
+  chipText: { color: color.ink, fontSize: 13, fontWeight: '600' },
+  chipTextActive: { color: color.onPrimary },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  loader: { marginTop: space.sm, alignSelf: 'center' },
   attribution: {
     position: 'absolute',
     right: 6,
     bottom: 4,
     fontSize: 10,
-    color: '#333',
+    color: color.text,
     backgroundColor: 'rgba(255,255,255,0.7)',
     paddingHorizontal: 4,
   },
-  error: { position: 'absolute', top: 100, left: 20, right: 20, backgroundColor: '#b3261e', padding: 10, borderRadius: 8 },
-  errorText: { color: '#fff', textAlign: 'center' },
+  error: {
+    position: 'absolute',
+    top: 110,
+    left: space.xl,
+    right: space.xl,
+    backgroundColor: color.danger,
+    padding: space.md,
+    borderRadius: radius.md,
+  },
+  errorText: { color: color.onPrimary, textAlign: 'center', fontWeight: '600' },
   sheet: {
     position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    elevation: 5,
-    gap: 2,
+    bottom: space.xxl,
+    left: space.lg,
+    right: space.lg,
+    backgroundColor: color.card,
+    padding: space.lg,
+    borderRadius: radius.xl,
+    gap: space.sm,
+    ...shadow,
+    elevation: 6,
   },
-  thumb: { width: '100%', height: 140, borderRadius: 8, marginBottom: 8 },
-  photoRow: { marginBottom: 8 },
-  photo: { width: 160, height: 120, borderRadius: 8, marginRight: 6 },
-  follows: { color: '#8a5a00', marginBottom: 4 },
+  thumb: { width: '100%', height: 150, borderRadius: radius.md },
+  photoRow: { marginBottom: space.xs },
+  photo: { width: 160, height: 120, borderRadius: radius.md, marginRight: 6 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  title: { flex: 1, fontSize: 18, fontWeight: '800', color: color.ink },
+  follows: { color: '#8a5a00', backgroundColor: color.accentSoft, padding: space.sm, borderRadius: radius.sm, fontSize: 13 },
+  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  fact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: color.bg,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  factText: { fontSize: 13, fontWeight: '600', color: color.text },
   notice: {
-    marginTop: 6,
+    marginTop: space.sm,
     alignSelf: 'center',
-    backgroundColor: '#fff3cd',
+    backgroundColor: color.accentSoft,
     color: '#5c4400',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: radius.md,
     fontSize: 12,
   },
   meButton: {
     position: 'absolute',
-    right: 12,
+    right: space.md,
     bottom: 40,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    elevation: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: color.card,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+    ...shadow,
   },
-  meText: { color: PRIMARY, fontWeight: '600' },
-  title: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  sheetButtons: { flexDirection: 'row', marginTop: 10, gap: 8 },
-  button: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: PRIMARY },
-  buttonDisabled: { backgroundColor: '#90a4ae' },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  meText: { color: color.primary, fontWeight: '700' },
+  button: {
+    flexDirection: 'row',
+    gap: space.sm,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: color.primary,
+    marginTop: space.xs,
+  },
+  buttonDisabled: { backgroundColor: '#9AA8B5' },
+  buttonText: { color: color.onPrimary, fontWeight: '700' },
 });

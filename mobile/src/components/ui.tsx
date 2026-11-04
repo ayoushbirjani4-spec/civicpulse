@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { ComponentProps, ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,9 +10,17 @@ import {
   TextInput,
   TextInputProps,
   View,
+  ViewStyle,
 } from 'react-native';
 
 import { ApiError, NetworkError } from '../api/client';
+import { color, font, radius, shadow, space } from '../theme';
+
+export type IconName = ComponentProps<typeof Ionicons>['name'];
+
+/** Big spaced digits for 6-digit email codes. */
+export const CODE_STYLE = { fontSize: 24, letterSpacing: 10, fontWeight: '700' as const, textAlign: 'center' as const };
+export { Ionicons as Icon };
 
 const MESSAGES: Record<string, string> = {
   invalid_credentials: 'Wrong email or password.',
@@ -53,9 +62,14 @@ export function PasswordRules({ password, confirm }: { password: string; confirm
   return (
     <View accessibilityLabel="Password requirements" style={styles.rules}>
       {rows.map((r) => (
-        <Text key={r.label} style={[styles.rule, r.ok ? styles.ruleOk : styles.ruleTodo]}>
-          {r.ok ? '✓' : '○'}  {r.label}
-        </Text>
+        <View key={r.label} style={styles.ruleRow}>
+          <Ionicons
+            name={r.ok ? 'checkmark-circle' : 'ellipse-outline'}
+            size={16}
+            color={r.ok ? color.success : color.muted}
+          />
+          <Text style={[styles.rule, r.ok && styles.ruleOk]}>{r.label}</Text>
+        </View>
       ))}
     </View>
   );
@@ -67,22 +81,66 @@ export function errorMessage(error: unknown): string {
   return 'Something went wrong. Try again.';
 }
 
-export function Screen({ children }: { children: ReactNode }) {
+/** A scrolling page. `header` is drawn edge to edge above the padded content. */
+export function Screen({ children, header }: { children: ReactNode; header?: ReactNode }) {
   return (
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
-      <ScrollView contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
-        {children}
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
+        {header}
+        <View style={styles.screen}>{children}</View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-export function Field({ label, ...input }: TextInputProps & { label: string }) {
+/** Title block at the top of a form screen. */
+export function FormHeader({ icon, title, subtitle }: { icon: IconName; title: string; subtitle?: string }) {
   return (
-    <>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} accessibilityLabel={label} {...input} />
-    </>
+    <View style={styles.formHeader}>
+      <View style={styles.formIcon}>
+        <Ionicons name={icon} size={26} color={color.primary} />
+      </View>
+      <Text style={font.title}>{title}</Text>
+      {subtitle ? <Text style={font.body}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+type FieldProps = TextInputProps & { label: string; icon?: IconName };
+
+export function Field({ label, icon, secureTextEntry, style, ...input }: FieldProps) {
+  const [focused, setFocused] = useState(false);
+  const [hidden, setHidden] = useState(true);
+  return (
+    <View style={styles.field}>
+      <Text style={font.label}>{label}</Text>
+      <View style={[styles.inputBox, focused && styles.inputFocused, input.multiline && styles.inputMulti]}>
+        {icon ? <Ionicons name={icon} size={18} color={focused ? color.primary : color.muted} /> : null}
+        <TextInput
+          style={[styles.input, style]}
+          accessibilityLabel={label}
+          placeholderTextColor={color.muted}
+          secureTextEntry={secureTextEntry && hidden}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          {...input}
+        />
+        {secureTextEntry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
+            hitSlop={10}
+            onPress={() => setHidden(!hidden)}
+          >
+            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={color.muted} />
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -91,22 +149,39 @@ type ButtonProps = {
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
+  /** Outlined instead of filled. */
   secondary?: boolean;
+  /** Text only, for low-priority links. */
+  link?: boolean;
+  danger?: boolean;
+  icon?: IconName;
 };
 
-export function Button({ title, onPress, busy, disabled, secondary }: ButtonProps) {
+export function Button({ title, onPress, busy, disabled, secondary, link, danger, icon }: ButtonProps) {
+  const filled = !secondary && !link;
+  const tint = filled ? color.onPrimary : danger ? color.danger : color.primary;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: busy || disabled, busy }}
       disabled={busy || disabled}
       onPress={onPress}
-      style={[styles.button, secondary && styles.secondary, (busy || disabled) && styles.busy]}
+      style={({ pressed }) => [
+        styles.button,
+        filled && (danger ? styles.dangerFill : styles.primaryFill),
+        secondary && [styles.outline, danger && styles.dangerOutline],
+        link && styles.link,
+        pressed && styles.pressed,
+        (busy || disabled) && styles.disabled,
+      ]}
     >
       {busy ? (
-        <ActivityIndicator color={secondary ? PRIMARY : '#fff'} />
+        <ActivityIndicator color={tint} />
       ) : (
-        <Text style={[styles.buttonText, secondary && styles.secondaryText]}>{title}</Text>
+        <View style={styles.buttonInner}>
+          {icon ? <Ionicons name={icon} size={20} color={tint} /> : null}
+          <Text style={[styles.buttonText, { color: tint }, link && styles.linkText]}>{title}</Text>
+        </View>
       )}
     </Pressable>
   );
@@ -114,40 +189,136 @@ export function Button({ title, onPress, busy, disabled, secondary }: ButtonProp
 
 export function Message({ text, success }: { text: string | null; success?: boolean }) {
   if (!text) return null;
-  return <Text style={[styles.message, success && styles.success]}>{text}</Text>;
+  return (
+    <View style={[styles.message, success ? styles.messageOk : styles.messageError]} accessibilityLiveRegion="polite">
+      <Ionicons
+        name={success ? 'checkmark-circle' : 'alert-circle'}
+        size={18}
+        color={success ? color.success : color.danger}
+      />
+      <Text style={[styles.messageText, { color: success ? color.success : color.danger }]}>{text}</Text>
+    </View>
+  );
 }
 
-const PRIMARY = '#0b6e4f';
+export function Card({ children, style }: { children: ReactNode; style?: ViewStyle | ViewStyle[] }) {
+  return <View style={[styles.card, style]}>{children}</View>;
+}
+
+/** A small coloured label, such as a report's status. */
+export function Chip({ label, icon, fg, bg, center }: { label: string; icon?: IconName; fg: string; bg: string; center?: boolean }) {
+  return (
+    <View style={[styles.chip, { backgroundColor: bg }, center && styles.chipCenter]}>
+      {icon ? <Ionicons name={icon} size={13} color={fg} /> : null}
+      <Text style={[styles.chipText, { color: fg }]}>{label}</Text>
+    </View>
+  );
+}
+
+export function ProgressBar({ value, tint = color.accent, track = color.border }: { value: number; tint?: string; track?: string }) {
+  const pct = Math.max(0, Math.min(1, value)) * 100;
+  return (
+    <View style={[styles.track, { backgroundColor: track }]} accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(pct), min: 0, max: 100 }}>
+      <View style={[styles.bar, { width: `${pct}%`, backgroundColor: tint }]} />
+    </View>
+  );
+}
+
+/** A tappable row for settings-style lists. */
+export function ListRow({ icon, title, onPress, danger, last }: { icon: IconName; title: string; onPress: () => void; danger?: boolean; last?: boolean }) {
+  const tint = danger ? color.danger : color.ink;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && styles.rowPressed]}
+    >
+      <View style={[styles.rowIcon, { backgroundColor: danger ? color.dangerSoft : color.primarySoft }]}>
+        <Ionicons name={icon} size={18} color={danger ? color.danger : color.primary} />
+      </View>
+      <Text style={[styles.rowTitle, { color: tint }]}>{title}</Text>
+      {danger ? null : <Ionicons name="chevron-forward" size={18} color={color.muted} />}
+    </Pressable>
+  );
+}
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  screen: { padding: 20, gap: 8 },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#b5bdc4',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  button: {
+  flex: { flex: 1, backgroundColor: color.bg },
+  scroll: { flexGrow: 1, paddingBottom: space.xxl },
+  screen: { padding: space.xl, gap: space.md },
+  formHeader: { gap: space.sm, marginBottom: space.sm },
+  formIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.lg,
+    backgroundColor: color.primarySoft,
     alignItems: 'center',
-    backgroundColor: PRIMARY,
-    borderRadius: 8,
-    marginTop: 12,
-    minHeight: 48,
     justifyContent: 'center',
+    marginBottom: space.xs,
   },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: PRIMARY },
-  busy: { opacity: 0.7 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondaryText: { color: PRIMARY },
-  message: { color: '#b3261e', fontSize: 14, marginTop: 8 },
-  success: { color: PRIMARY },
-  rules: { marginTop: 4, gap: 2 },
-  rule: { fontSize: 13 },
-  ruleOk: { color: PRIMARY },
-  ruleTodo: { color: '#5f6b73' },
+  field: { gap: 6 },
+  inputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    borderWidth: 1.5,
+    borderColor: color.border,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    backgroundColor: color.card,
+    minHeight: 52,
+  },
+  inputFocused: { borderColor: color.primary },
+  inputMulti: { alignItems: 'flex-start', paddingVertical: space.sm },
+  input: { flex: 1, fontSize: 16, color: color.ink, paddingVertical: space.md },
+  button: {
+    minHeight: 52,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.lg,
+  },
+  primaryFill: { backgroundColor: color.primary },
+  dangerFill: { backgroundColor: color.danger },
+  outline: { borderWidth: 1.5, borderColor: color.primary, backgroundColor: color.card },
+  dangerOutline: { borderColor: color.danger },
+  link: { minHeight: 40 },
+  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+  disabled: { opacity: 0.5 },
+  buttonInner: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  buttonText: { fontSize: 16, fontWeight: '700' },
+  linkText: { fontSize: 15, fontWeight: '600' },
+  message: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+  },
+  messageOk: { backgroundColor: color.successSoft },
+  messageError: { backgroundColor: color.dangerSoft },
+  messageText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '500' },
+  rules: { gap: 6, padding: space.md, borderRadius: radius.md, backgroundColor: color.card },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  rule: { fontSize: 13, color: color.muted },
+  ruleOk: { color: color.success, fontWeight: '600' },
+  card: { backgroundColor: color.card, borderRadius: radius.lg, padding: space.lg, ...shadow },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  chipCenter: { alignSelf: 'center' },
+  chipText: { fontSize: 12, fontWeight: '700' },
+  track: { height: 8, borderRadius: radius.pill, overflow: 'hidden' },
+  bar: { height: '100%', borderRadius: radius.pill },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.border },
+  rowPressed: { opacity: 0.6 },
+  rowIcon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  rowTitle: { flex: 1, fontSize: 16, fontWeight: '500' },
 });

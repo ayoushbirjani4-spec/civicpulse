@@ -1,7 +1,17 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
+import {
+  Button,
+  CODE_STYLE,
+  errorMessage,
+  Field,
+  FormHeader,
+  Message,
+  newPasswordProblem,
+  PasswordRules,
+  Screen,
+} from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPassword'>) {
@@ -13,7 +23,7 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The server answers the same for unknown emails, so this cannot say "we sent it".
-  const [notice, setNotice] = useState<string | null>(`If ${email} has an account, a code is on its way.`);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function submit() {
     const problem = newPasswordProblem(password, confirm);
@@ -54,9 +64,16 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
 
   return (
     <Screen>
+      <FormHeader
+        icon="lock-open"
+        title="Choose a new password"
+        subtitle={`If ${email} has an account, a 6-digit code is on its way.`}
+      />
       <Message text={notice} success />
       <Field
         label="Code from the email"
+        style={CODE_STYLE}
+        placeholder="000000"
         value={code}
         onChangeText={setCode}
         autoComplete="one-time-code"
@@ -65,6 +82,7 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
       />
       <Field
         label="New password"
+        icon="lock-closed-outline"
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
@@ -72,6 +90,7 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
       />
       <Field
         label="Confirm new password"
+        icon="lock-closed-outline"
         value={confirm}
         onChangeText={setConfirm}
         autoComplete="new-password"
@@ -79,8 +98,8 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
       />
       <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
-      <Button title="Set new password" onPress={submit} busy={busy} />
-      <Button title="Send a new code" onPress={resend} busy={resending} secondary />
+      <Button title="Set new password" icon="checkmark-circle" onPress={submit} busy={busy} />
+      <Button title="Send a new code" icon="refresh" onPress={resend} busy={resending} link />
     </Screen>
   );
 }
