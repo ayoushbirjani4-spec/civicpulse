@@ -65,9 +65,8 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
   return (
     <Screen>
       <FormHeader
-        icon="lock-open"
         title="Choose a new password"
-        subtitle={`If ${email} has an account, a 6-digit code is on its way.`}
+        subtitle={`If ${email} has an account, a 6-digit code is on its way`}
       />
       <Message text={notice} success />
       <Field
@@ -82,7 +81,6 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
       />
       <Field
         label="New password"
-        icon="lock-closed-outline"
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
@@ -90,7 +88,6 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
       />
       <Field
         label="Confirm new password"
-        icon="lock-closed-outline"
         value={confirm}
         onChangeText={setConfirm}
         autoComplete="new-password"
@@ -98,8 +95,8 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
       />
       <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
-      <Button title="Set new password" icon="checkmark-circle" onPress={submit} busy={busy} />
-      <Button title="Send a new code" icon="refresh" onPress={resend} busy={resending} link />
+      <Button title="Set new password" onPress={submit} busy={busy} />
+      <Button title="Send a new code" onPress={resend} busy={resending} link />
     </Screen>
   );
 }

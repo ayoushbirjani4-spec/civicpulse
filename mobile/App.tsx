@@ -1,5 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -19,7 +20,7 @@ import { NewReportScreen } from './src/screens/NewReportScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { VerifyCodeScreen } from './src/screens/VerifyCodeScreen';
-import { color } from './src/theme';
+import { color, family, fontFiles } from './src/theme';
 
 const Stack = createNativeStackNavigator<RootStack>();
 
@@ -32,7 +33,7 @@ function Routes() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={color.primary} />
+        <ActivityIndicator size="large" color={color.accent} />
       </View>
     );
   }
@@ -41,7 +42,7 @@ function Routes() {
     <Stack.Navigator screenOptions={SCREEN}>
       {user ? (
         <>
-          <Stack.Screen name="MyReports" component={MyReportsScreen} options={{ ...HERO, title: 'Home' }} />
+          <Stack.Screen name="MyReports" component={MyReportsScreen} options={{ ...NO_HEADER, title: 'Home' }} />
           <Stack.Screen name="NewReport" component={NewReportScreen} options={{ title: 'New report' }} />
           <Stack.Screen name="Map" component={MapGate} options={{ title: 'Hazard map' }} />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Your profile' }} />
@@ -49,7 +50,7 @@ function Routes() {
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ ...HERO, title: 'Log in' }} />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ ...NO_HEADER, title: 'Log in' }} />
           <Stack.Screen name="Register" component={RegisterScreen} options={{ title: '' }} />
           <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} options={{ title: '' }} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: '' }} />
@@ -62,6 +63,9 @@ function Routes() {
 }
 
 export default function App() {
+  // Plex is bundled with the app, so this resolves in a moment and never needs the network.
+  const [fontsReady] = useFonts(fontFiles);
+  if (!fontsReady) return <View style={styles.loading} />;
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -75,17 +79,17 @@ export default function App() {
 }
 
 const SCREEN = {
-  headerStyle: { backgroundColor: color.bg },
+  headerStyle: { backgroundColor: color.page },
   headerShadowVisible: false,
-  headerTintColor: color.ink,
-  headerTitleStyle: { fontWeight: '700' as const },
-  contentStyle: { backgroundColor: color.bg },
+  headerTintColor: color.text,
+  headerTitleStyle: { fontFamily: family.semibold, fontSize: 17 },
+  contentStyle: { backgroundColor: color.page },
   statusBarStyle: 'dark' as const,
 };
 
-// Screens that draw their own teal header under the status bar.
-const HERO = { headerShown: false, statusBarStyle: 'light' as const };
+// Screens that start with their own title block instead of a navigation header.
+const NO_HEADER = { headerShown: false };
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: color.bg },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: color.page },
 });

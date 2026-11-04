@@ -4,39 +4,52 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Pressable,
+  Text as RNText,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TextInputProps,
+  TextProps,
   View,
   ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError, NetworkError } from '../api/client';
-import { color, font, radius, shadow, space } from '../theme';
+import { color, family, ICON, radius, space, type } from '../theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
-
-/** Big spaced digits for 6-digit email codes. */
-export const CODE_STYLE = { fontSize: 24, letterSpacing: 10, fontWeight: '700' as const, textAlign: 'center' as const };
 export { Ionicons as Icon };
 
+/** Big digits for 6-digit email codes. */
+export const CODE_STYLE = { fontFamily: family.monoMedium, fontSize: 24, letterSpacing: 6, textAlign: 'center' as const };
+
+/**
+ * Text in IBM Plex. A fontWeight in a style picks the matching Plex file, because Android
+ * cannot fake weights for a custom font.
+ */
+export function Text({ style, ...props }: TextProps) {
+  const { fontWeight, fontFamily, ...rest } = StyleSheet.flatten(style) ?? {};
+  const weight = fontWeight === 'bold' ? 700 : Number(fontWeight) || 400;
+  const picked = fontFamily ?? (weight >= 600 ? family.semibold : weight >= 500 ? family.medium : family.regular);
+  return <RNText {...props} style={[styles.text, rest, { fontFamily: picked }]} />;
+}
+
 const MESSAGES: Record<string, string> = {
-  invalid_credentials: 'Wrong email or password.',
+  invalid_credentials: 'Wrong email or password',
   email_already_registered: 'This email already has an account. Log in instead.',
-  invalid_code: 'That code is not correct.',
+  invalid_code: 'That code is not correct',
   code_expired: 'That code has expired. Send a new one.',
   code_locked: 'Too many wrong tries. Send a new code.',
-  account_disabled: 'This account has been disabled.',
+  account_disabled: 'This account has been disabled',
   rate_limited: 'Too many attempts. Wait a minute and try again.',
-  invalid_input: 'Please check what you entered. Passwords need at least 8 characters.',
-  weak_password: 'That password is too easy to guess. Try a longer phrase of unrelated words.',
-  password_contains_email: 'Your password must not contain your email address.',
-  wrong_password: 'Your current password is not correct.',
-  same_password: 'The new password must be different from the current one.',
+  invalid_input: 'Check what you entered. Passwords need at least 8 characters.',
+  weak_password: 'That password is easy to guess. Try a longer phrase of unrelated words.',
+  password_contains_email: 'Your password must not contain your email address',
+  wrong_password: 'Your current password is not correct',
+  same_password: 'The new password must be different from the current one',
   bad_server_address: 'Enter an address like http://192.168.1.3:8000',
-  password_too_simple: 'Use at least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.',
+  password_too_simple: 'Use at least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol',
 };
 
 // The same rule the server enforces in password_problem (api/app/security.py).
@@ -51,7 +64,7 @@ const PASSWORD_RULES: { label: string; test: (p: string) => boolean }[] = [
 /** Checks the phone can do before asking the server. Returns a message, or null if fine. */
 export function newPasswordProblem(password: string, confirm: string): string | null {
   if (!PASSWORD_RULES.every((r) => r.test(password))) return MESSAGES.password_too_simple;
-  if (password !== confirm) return 'The two passwords do not match.';
+  if (password !== confirm) return 'The two passwords do not match';
   return null;
 }
 
@@ -64,11 +77,11 @@ export function PasswordRules({ password, confirm }: { password: string; confirm
       {rows.map((r) => (
         <View key={r.label} style={styles.ruleRow}>
           <Ionicons
-            name={r.ok ? 'checkmark-circle' : 'ellipse-outline'}
+            name={r.ok ? 'checkmark-circle-outline' : 'ellipse-outline'}
             size={16}
-            color={r.ok ? color.success : color.muted}
+            color={r.ok ? color.positive : color.muted}
           />
-          <Text style={[styles.rule, r.ok && styles.ruleOk]}>{r.label}</Text>
+          <Text style={[type.small, r.ok && styles.ruleOk]}>{r.label}</Text>
         </View>
       ))}
     </View>
@@ -81,45 +94,51 @@ export function errorMessage(error: unknown): string {
   return 'Something went wrong. Try again.';
 }
 
-/** A scrolling page. `header` is drawn edge to edge above the padded content. */
-export function Screen({ children, header }: { children: ReactNode; header?: ReactNode }) {
+/** A scrolling page. `top` pads for the status bar on screens without a header. */
+export function Screen({ children, top }: { children: ReactNode; top?: boolean }) {
+  const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView style={styles.flex} behavior="padding">
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.screen, top && { paddingTop: insets.top + space.lg }]}
         keyboardShouldPersistTaps="handled"
       >
-        {header}
-        <View style={styles.screen}>{children}</View>
+        {children}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 /** Title block at the top of a form screen. */
-export function FormHeader({ icon, title, subtitle }: { icon: IconName; title: string; subtitle?: string }) {
+export function FormHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={styles.formHeader}>
-      <View style={styles.formIcon}>
-        <Ionicons name={icon} size={26} color={color.primary} />
-      </View>
-      <Text style={font.title}>{title}</Text>
-      {subtitle ? <Text style={font.body}>{subtitle}</Text> : null}
+      <Text style={type.title}>{title}</Text>
+      {subtitle ? <Text style={type.body}>{subtitle}</Text> : null}
     </View>
   );
 }
 
-type FieldProps = TextInputProps & { label: string; icon?: IconName };
+/** The product name in the interface family, next to a flat pulse mark. */
+export function Wordmark() {
+  return (
+    <View style={styles.wordmark}>
+      <View style={styles.mark}>
+        <Ionicons name="pulse" size={16} color={color.onAccent} />
+      </View>
+      <Text style={styles.wordmarkText}>CivicPulse</Text>
+    </View>
+  );
+}
 
-export function Field({ label, icon, secureTextEntry, style, ...input }: FieldProps) {
+export function Field({ label, secureTextEntry, style, ...input }: TextInputProps & { label: string }) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
   return (
     <View style={styles.field}>
-      <Text style={font.label}>{label}</Text>
+      <Text style={type.label}>{label}</Text>
       <View style={[styles.inputBox, focused && styles.inputFocused, input.multiline && styles.inputMulti]}>
-        {icon ? <Ionicons name={icon} size={18} color={focused ? color.primary : color.muted} /> : null}
         <TextInput
           style={[styles.input, style]}
           accessibilityLabel={label}
@@ -133,10 +152,10 @@ export function Field({ label, icon, secureTextEntry, style, ...input }: FieldPr
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
-            hitSlop={10}
+            hitSlop={12}
             onPress={() => setHidden(!hidden)}
           >
-            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={20} color={color.muted} />
+            <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={ICON} color={color.muted} />
           </Pressable>
         ) : null}
       </View>
@@ -149,17 +168,16 @@ type ButtonProps = {
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
-  /** Outlined instead of filled. */
+  /** A raised neutral button instead of the accent fill. */
   secondary?: boolean;
-  /** Text only, for low-priority links. */
+  /** Text only, for low-priority actions. */
   link?: boolean;
   danger?: boolean;
-  icon?: IconName;
 };
 
-export function Button({ title, onPress, busy, disabled, secondary, link, danger, icon }: ButtonProps) {
+export function Button({ title, onPress, busy, disabled, secondary, link, danger }: ButtonProps) {
   const filled = !secondary && !link;
-  const tint = filled ? color.onPrimary : danger ? color.danger : color.primary;
+  const tint = filled ? color.onAccent : danger ? color.negative : link ? color.accent : color.text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -168,21 +186,14 @@ export function Button({ title, onPress, busy, disabled, secondary, link, danger
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        filled && (danger ? styles.dangerFill : styles.primaryFill),
-        secondary && [styles.outline, danger && styles.dangerOutline],
+        filled && styles.primary,
+        secondary && styles.secondary,
         link && styles.link,
         pressed && styles.pressed,
         (busy || disabled) && styles.disabled,
       ]}
     >
-      {busy ? (
-        <ActivityIndicator color={tint} />
-      ) : (
-        <View style={styles.buttonInner}>
-          {icon ? <Ionicons name={icon} size={20} color={tint} /> : null}
-          <Text style={[styles.buttonText, { color: tint }, link && styles.linkText]}>{title}</Text>
-        </View>
-      )}
+      {busy ? <ActivityIndicator color={tint} /> : <Text style={[styles.buttonText, { color: tint }]}>{title}</Text>}
     </Pressable>
   );
 }
@@ -192,133 +203,169 @@ export function Message({ text, success }: { text: string | null; success?: bool
   return (
     <View style={[styles.message, success ? styles.messageOk : styles.messageError]} accessibilityLiveRegion="polite">
       <Ionicons
-        name={success ? 'checkmark-circle' : 'alert-circle'}
-        size={18}
-        color={success ? color.success : color.danger}
+        name={success ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+        size={ICON}
+        color={success ? color.positive : color.negative}
       />
-      <Text style={[styles.messageText, { color: success ? color.success : color.danger }]}>{text}</Text>
+      <Text style={[styles.messageText, { color: success ? color.positive : color.negative }]}>{text}</Text>
     </View>
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: ViewStyle | ViewStyle[] }) {
+export function Card({ children, style }: { children: ReactNode; style?: ViewStyle | (ViewStyle | false)[] }) {
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-/** A small coloured label, such as a report's status. */
-export function Chip({ label, icon, fg, bg, center }: { label: string; icon?: IconName; fg: string; bg: string; center?: boolean }) {
+/** A status word with a small dot in its meaning's colour. */
+export function StatusDot({ label, tint }: { label: string; tint: string }) {
   return (
-    <View style={[styles.chip, { backgroundColor: bg }, center && styles.chipCenter]}>
-      {icon ? <Ionicons name={icon} size={13} color={fg} /> : null}
-      <Text style={[styles.chipText, { color: fg }]}>{label}</Text>
+    <View style={styles.status}>
+      <View style={[styles.dot, { backgroundColor: tint }]} />
+      <Text style={[styles.statusText, { color: tint }]}>{label}</Text>
     </View>
   );
 }
 
-export function ProgressBar({ value, tint = color.accent, track = color.border }: { value: number; tint?: string; track?: string }) {
-  const pct = Math.max(0, Math.min(1, value)) * 100;
+const DASHES = 12;
+
+/**
+ * The signature detail: a strip of asphalt whose centre line is painted in as progress is made.
+ * Used for a report's journey (Reported, In repair, Fixed) and for rank progress, nowhere else.
+ */
+export function RoadTrack({ value, stops, reached = -1 }: { value: number; stops?: string[]; reached?: number }) {
+  const painted = Math.round(Math.max(0, Math.min(1, value)) * DASHES);
   return (
-    <View style={[styles.track, { backgroundColor: track }]} accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(pct), min: 0, max: 100 }}>
-      <View style={[styles.bar, { width: `${pct}%`, backgroundColor: tint }]} />
+    <View style={styles.trackWrap}>
+      <View
+        style={styles.track}
+        accessibilityRole="progressbar"
+        accessibilityValue={{ now: Math.round(value * 100), min: 0, max: 100 }}
+      >
+        {Array.from({ length: DASHES }, (_, i) => (
+          <View key={i} style={[styles.dash, { backgroundColor: i < painted ? color.marking : color.markingOff }]} />
+        ))}
+      </View>
+      {stops ? (
+        <View style={styles.stops}>
+          {stops.map((s, i) => (
+            <Text key={s} style={[type.meta, i <= reached && styles.stopReached]}>
+              {s}
+            </Text>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 /** A tappable row for settings-style lists. */
-export function ListRow({ icon, title, onPress, danger, last }: { icon: IconName; title: string; onPress: () => void; danger?: boolean; last?: boolean }) {
-  const tint = danger ? color.danger : color.ink;
+export function ListRow({
+  icon,
+  title,
+  detail,
+  onPress,
+  danger,
+  last,
+}: {
+  icon: IconName;
+  title: string;
+  detail?: string;
+  onPress: () => void;
+  danger?: boolean;
+  last?: boolean;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && styles.rowPressed]}
     >
-      <View style={[styles.rowIcon, { backgroundColor: danger ? color.dangerSoft : color.primarySoft }]}>
-        <Ionicons name={icon} size={18} color={danger ? color.danger : color.primary} />
+      <Ionicons name={icon} size={ICON} color={danger ? color.negative : color.muted} />
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, danger && { color: color.negative }]}>{title}</Text>
+        {detail ? <Text style={type.small}>{detail}</Text> : null}
       </View>
-      <Text style={[styles.rowTitle, { color: tint }]}>{title}</Text>
-      {danger ? null : <Ionicons name="chevron-forward" size={18} color={color.muted} />}
+      {danger ? null : <Ionicons name="chevron-forward" size={ICON} color={color.muted} />}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: color.bg },
-  scroll: { flexGrow: 1, paddingBottom: space.xxl },
-  screen: { padding: space.xl, gap: space.md },
+  text: { color: color.text, fontSize: 15 },
+  flex: { flex: 1, backgroundColor: color.page },
+  screen: { flexGrow: 1, padding: space.xl, paddingBottom: space.section, gap: space.lg },
   formHeader: { gap: space.sm, marginBottom: space.sm },
-  formIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.lg,
-    backgroundColor: color.primarySoft,
+  wordmark: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  mark: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.small,
+    backgroundColor: color.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: space.xs,
   },
-  field: { gap: 6 },
+  wordmarkText: { fontFamily: family.semibold, fontSize: 17, color: color.text },
+  field: { gap: space.sm },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: color.border,
-    borderRadius: radius.md,
+    borderRadius: radius.control,
     paddingHorizontal: space.md,
     backgroundColor: color.card,
-    minHeight: 52,
+    minHeight: 48,
   },
-  inputFocused: { borderColor: color.primary },
-  inputMulti: { alignItems: 'flex-start', paddingVertical: space.sm },
-  input: { flex: 1, fontSize: 16, color: color.ink, paddingVertical: space.md },
+  inputFocused: { borderColor: color.accent },
+  inputMulti: { alignItems: 'flex-start', paddingVertical: space.xs },
+  input: { flex: 1, fontSize: 16, color: color.text, paddingVertical: space.md, fontFamily: family.regular },
   button: {
-    minHeight: 52,
-    borderRadius: radius.md,
+    minHeight: 48,
+    borderRadius: radius.control,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.xl,
   },
-  primaryFill: { backgroundColor: color.primary },
-  dangerFill: { backgroundColor: color.danger },
-  outline: { borderWidth: 1.5, borderColor: color.primary, backgroundColor: color.card },
-  dangerOutline: { borderColor: color.danger },
-  link: { minHeight: 40 },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
-  disabled: { opacity: 0.5 },
-  buttonInner: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  buttonText: { fontSize: 16, fontWeight: '700' },
-  linkText: { fontSize: 15, fontWeight: '600' },
-  message: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
-    padding: space.md,
-    borderRadius: radius.md,
-  },
-  messageOk: { backgroundColor: color.successSoft },
-  messageError: { backgroundColor: color.dangerSoft },
-  messageText: { flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '500' },
-  rules: { gap: 6, padding: space.md, borderRadius: radius.md, backgroundColor: color.card },
+  primary: { backgroundColor: color.accent },
+  secondary: { backgroundColor: color.raised, borderWidth: 1, borderColor: color.hairline },
+  link: { minHeight: 40, paddingHorizontal: 0 },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  disabled: { opacity: 0.45 },
+  buttonText: { fontFamily: family.medium, fontSize: 15 },
+  message: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, padding: space.md, borderRadius: radius.control },
+  messageOk: { backgroundColor: color.positiveSoft },
+  messageError: { backgroundColor: color.negativeSoft },
+  messageText: { flex: 1, fontSize: 14, lineHeight: 20 },
+  rules: { gap: space.xs },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  rule: { fontSize: 13, color: color.muted },
-  ruleOk: { color: color.success, fontWeight: '600' },
-  card: { backgroundColor: color.card, borderRadius: radius.lg, padding: space.lg, ...shadow },
-  chip: {
+  ruleOk: { color: color.positive },
+  card: {
+    backgroundColor: color.card,
+    borderRadius: radius.card,
+    padding: space.lg,
+    borderWidth: 1,
+    borderColor: color.hairline,
+  },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontFamily: family.medium, fontSize: 13 },
+  trackWrap: { gap: 6 },
+  track: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: color.asphalt,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 4,
     gap: 4,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
   },
-  chipCenter: { alignSelf: 'center' },
-  chipText: { fontSize: 12, fontWeight: '700' },
-  track: { height: 8, borderRadius: radius.pill, overflow: 'hidden' },
-  bar: { height: '100%', borderRadius: radius.pill },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md },
+  dash: { flex: 1, height: 2, borderRadius: 1 },
+  stops: { flexDirection: 'row', justifyContent: 'space-between' },
+  stopReached: { color: color.text2 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 52, paddingVertical: space.sm },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.border },
   rowPressed: { opacity: 0.6 },
-  rowIcon: { width: 34, height: 34, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  rowTitle: { flex: 1, fontSize: 16, fontWeight: '500' },
+  rowText: { flex: 1, gap: 2 },
+  rowTitle: { fontSize: 15, color: color.text },
 });

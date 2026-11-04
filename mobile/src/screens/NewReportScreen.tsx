@@ -3,16 +3,15 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
-import { Button, Card, errorMessage, Field, FormHeader, Icon, Message, Screen } from '../components/ui';
-import { categoryIcon } from '../impact';
+import { Button, Card, errorMessage, Field, FormHeader, Icon, Message, Screen, StatusDot, Text } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 import { Category, loadCategories } from '../reports/categories';
 import { enqueue } from '../reports/queue';
 import { processQueue } from '../reports/uploader';
-import { color, font, radius, space } from '../theme';
+import { color, family, radius, space, type } from '../theme';
 
 type Fix = { lat: number; lng: number; accuracy: number; mocked: boolean };
 
@@ -113,11 +112,10 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
     return (
       <Screen>
         <FormHeader
-          icon="camera"
           title="Allow the camera"
           subtitle="CivicPulse needs the camera to photograph the hazard. Photos are taken in the app only."
         />
-        <Button title="Allow camera" icon="camera-outline" onPress={requestCameraPermission} />
+        <Button title="Allow camera" onPress={requestCameraPermission} />
       </Screen>
     );
   }
@@ -127,8 +125,7 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
       <View style={styles.fill}>
         <CameraView ref={camera} style={styles.fill} facing="back" onCameraReady={() => setReady(true)} />
         <View style={styles.tip}>
-          <Icon name="bulb" size={18} color={color.accent} />
-          <Text style={styles.tipText}>Stand about 2 m away and include a kerb, wall or drain cover.</Text>
+          <Text style={styles.tipText}>Stand about 2 m away and include a kerb, wall or drain cover</Text>
         </View>
         <View style={styles.shutterBar}>
           <Pressable
@@ -139,7 +136,6 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
           >
             <View style={styles.shutterInner} />
           </Pressable>
-          <Text style={styles.shutterText}>Tap to take the photo</Text>
         </View>
       </View>
     );
@@ -151,13 +147,13 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
       <View>
         <Image source={{ uri: photo.uri }} style={styles.preview} />
         <Pressable accessibilityRole="button" style={styles.retake} onPress={() => setPhoto(null)}>
-          <Icon name="camera-reverse" size={16} color={color.onPrimary} />
+          <Icon name="camera-reverse-outline" size={16} color={color.onAccent} />
           <Text style={styles.retakeText}>Retake</Text>
         </Pressable>
       </View>
 
-      <Card style={styles.section}>
-        <Text style={font.heading}>What is it?</Text>
+      <View style={styles.group}>
+        <Text style={type.label}>Type of hazard</Text>
         <View style={styles.chips}>
           {categories.map((c) => {
             const on = c.id === categoryId;
@@ -169,89 +165,71 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
                 onPress={() => setCategoryId(c.id)}
                 style={[styles.chip, on && styles.chipOn]}
               >
-                <Icon name={categoryIcon(c.name)} size={16} color={on ? color.onPrimary : color.primary} />
                 <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.name}</Text>
               </Pressable>
             );
           })}
         </View>
-      </Card>
+      </View>
 
-      <Card style={[styles.section, styles.locationRow]}>
-        <View
-          style={[
-            styles.locationIcon,
-            { backgroundColor: fix ? color.successSoft : locating ? color.infoSoft : color.dangerSoft },
-          ]}
-        >
-          <Icon
-            name={fix ? 'location' : locating ? 'navigate' : 'location-outline'}
-            size={22}
-            color={fix ? color.success : locating ? color.info : color.danger}
+      <Card style={styles.location}>
+        <View style={styles.locationHead}>
+          <StatusDot
+            label={fix ? 'Location found' : locating ? 'Finding your position' : 'No location yet'}
+            tint={fix ? color.positive : locating ? color.text2 : color.negative}
           />
+          {fix ? <Text style={type.meta}>±{Math.round(fix.accuracy)} m</Text> : null}
         </View>
-        <View style={styles.flex1}>
-          <Text style={styles.locationTitle}>
-            {fix ? 'Location locked' : locating ? 'Finding your position...' : 'No location yet'}
-          </Text>
-          <Text style={font.small}>
-            {fix
-              ? `Accurate to about ${Math.round(fix.accuracy)} m${fix.mocked ? '. Mock location detected.' : ''}`
-              : (locationError ?? 'Stay where the hazard is for a moment.')}
-          </Text>
-          {locationError ? <Button title="Try again" link icon="refresh" onPress={locate} /> : null}
-        </View>
+        <Text style={type.small}>
+          {fix
+            ? fix.mocked
+              ? 'A mock location app was detected, so this report will be flagged'
+              : 'Saved with the photo so the hazard lands at the right spot on the map'
+            : (locationError ?? 'Stay where the hazard is for a moment')}
+        </Text>
+        {locationError ? <Button title="Try again" link onPress={locate} /> : null}
       </Card>
 
       <Field
         label="Note (optional)"
-        icon="create-outline"
-        placeholder="e.g. Deep pothole near the bus stop"
+        placeholder="Deep pothole near the bus stop"
         value={description}
         onChangeText={setDescription}
         maxLength={1000}
         multiline
       />
       <Message text={error} />
-      <Button title="Send report" icon="send" onPress={send} busy={busy} disabled={!fix || !categoryId} />
-      <View style={styles.hintRow}>
-        <Icon name="cloud-offline-outline" size={16} color={color.muted} />
-        <Text style={[font.small, styles.flex1]}>With no signal, the report waits on this phone and uploads later.</Text>
-      </View>
+      <Button title="Send report" onPress={send} busy={busy} disabled={!fix || !categoryId} />
+      <Text style={type.small}>With no signal, the report waits on this phone and uploads later</Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#000' },
-  flex1: { flex: 1 },
   tip: {
     position: 'absolute',
     top: space.lg,
     left: space.lg,
     right: space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    backgroundColor: 'rgba(15,27,45,0.72)',
-    borderRadius: radius.md,
+    backgroundColor: 'rgba(23,23,23,0.72)',
+    borderRadius: radius.control,
     padding: space.md,
   },
-  tipText: { flex: 1, color: '#fff', fontSize: 14, lineHeight: 19 },
-  shutterBar: { position: 'absolute', bottom: 36, left: 0, right: 0, alignItems: 'center', gap: space.sm },
+  tipText: { color: '#fff', fontSize: 14, lineHeight: 20 },
+  shutterBar: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
   shutter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 5,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 4,
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shutterPressed: { transform: [{ scale: 0.94 }] },
-  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: color.accent },
-  shutterText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.lg, backgroundColor: color.border },
+  shutterPressed: { transform: [{ scale: 0.96 }] },
+  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#fff' },
+  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.card, backgroundColor: color.raised },
   retake: {
     position: 'absolute',
     top: space.md,
@@ -259,30 +237,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(15,27,45,0.7)',
+    backgroundColor: 'rgba(23,23,23,0.72)',
     paddingHorizontal: space.md,
     paddingVertical: 6,
-    borderRadius: radius.pill,
+    borderRadius: radius.small,
   },
-  retakeText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  section: { gap: space.md },
+  retakeText: { color: '#fff', fontFamily: family.medium, fontSize: 13 },
+  group: { gap: space.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderColor: color.primarySoft,
-    backgroundColor: color.primarySoft,
-    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: color.border,
+    backgroundColor: color.card,
+    borderRadius: radius.control,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  chipOn: { backgroundColor: color.primary, borderColor: color.primary },
-  chipText: { color: color.primaryDark, fontWeight: '600', fontSize: 14 },
-  chipTextOn: { color: color.onPrimary },
-  locationRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  locationIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  locationTitle: { fontSize: 15, fontWeight: '700', color: color.ink },
-  hintRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  chipOn: { backgroundColor: color.text, borderColor: color.text },
+  chipText: { fontFamily: family.medium, fontSize: 14, color: color.text },
+  chipTextOn: { color: color.card },
+  location: { gap: space.xs },
+  locationHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });

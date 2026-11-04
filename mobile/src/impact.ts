@@ -29,46 +29,56 @@ export function rank(reports: number) {
   };
 }
 
+export function nextRankLine(level: ReturnType<typeof rank>) {
+  if (!level.next) return 'Top rank reached';
+  return `${level.toNext} more ${level.toNext === 1 ? 'report' : 'reports'} to ${level.next}`;
+}
+
 export type Badge = { key: string; title: string; hint: string; icon: IconName; earned: boolean };
 
 export function badges(i: Impact): Badge[] {
   return [
-    { key: 'first', title: 'First report', hint: 'Send your first report', icon: 'camera', earned: i.reports >= 1 },
-    { key: 'five', title: 'Five hazards', hint: 'Report 5 hazards', icon: 'flag', earned: i.hazards >= 5 },
-    { key: 'backed', title: 'Backed up', hint: 'Someone else reports your hazard', icon: 'people', earned: i.confirmations >= 1 },
-    { key: 'repair', title: 'In repair', hint: 'A hazard you reported goes into repair', icon: 'construct', earned: i.in_repair + i.fixed >= 1 },
-    { key: 'fixed', title: 'Got it fixed', hint: 'A hazard you reported is fixed', icon: 'checkmark-done', earned: i.fixed >= 1 },
-    { key: 'guardian', title: 'Guardian', hint: 'Report 15 hazards', icon: 'shield-checkmark', earned: i.hazards >= 15 },
+    { key: 'first', title: 'First report', hint: 'Send your first report', icon: 'camera-outline', earned: i.reports >= 1 },
+    { key: 'five', title: 'Five hazards', hint: 'Report 5 hazards', icon: 'flag-outline', earned: i.hazards >= 5 },
+    { key: 'backed', title: 'Backed up', hint: 'Someone else reports your hazard', icon: 'people-outline', earned: i.confirmations >= 1 },
+    { key: 'repair', title: 'In repair', hint: 'A hazard you reported goes into repair', icon: 'construct-outline', earned: i.in_repair + i.fixed >= 1 },
+    { key: 'fixed', title: 'Got it fixed', hint: 'A hazard you reported is fixed', icon: 'checkmark-done-outline', earned: i.fixed >= 1 },
+    { key: 'guardian', title: 'Guardian', hint: 'Report 15 hazards', icon: 'shield-checkmark-outline', earned: i.hazards >= 15 },
   ];
 }
 
-export type Status = { label: string; icon: IconName; fg: string; bg: string };
+export const STAGES = ['Reported', 'In repair', 'Fixed'];
 
-/** What a server report's status means to the person who sent it. */
-export function reportStatus(state: string, pinStatus: string | null | undefined): Status {
-  if (state === 'rejected') return { label: 'Not accepted', icon: 'close-circle', fg: color.danger, bg: color.dangerSoft };
-  if (pinStatus === 'closed') return { label: 'Fixed', icon: 'checkmark-circle', fg: color.success, bg: color.successSoft };
-  if (pinStatus === 'pending_repair') return { label: 'Repair underway', icon: 'construct', fg: color.info, bg: color.infoSoft };
-  return { label: 'On the map', icon: 'location', fg: '#9A6700', bg: color.accentSoft };
+/**
+ * Where a report is on its way to a repair. `stage` is the last stop reached (-1 for none),
+ * `label` and `tint` describe it in words for the status line.
+ */
+export type Journey = { stage: number; label: string; tint: string };
+
+export function journey(state: string, pinStatus: string | null | undefined): Journey {
+  if (state === 'rejected') return { stage: -1, label: 'Not accepted', tint: color.negative };
+  if (pinStatus === 'closed') return { stage: 2, label: 'Fixed', tint: color.positive };
+  if (pinStatus === 'pending_repair') return { stage: 1, label: 'In repair', tint: color.progress };
+  return { stage: 0, label: 'On the map', tint: color.text2 };
 }
 
 // Matched by name so queued reports, which only keep the category name, get the same icon.
 const CATEGORY_ICONS: [string, IconName][] = [
-  ['pothole', 'warning'],
-  ['water', 'water'],
-  ['drain', 'funnel'],
-  ['debris', 'leaf'],
-  ['branch', 'leaf'],
+  ['pothole', 'warning-outline'],
+  ['water', 'water-outline'],
+  ['drain', 'funnel-outline'],
+  ['debris', 'leaf-outline'],
+  ['branch', 'leaf-outline'],
 ];
 
 export function categoryIcon(name: string): IconName {
   const n = name.toLowerCase();
-  return CATEGORY_ICONS.find(([word]) => n.includes(word))?.[1] ?? 'help-circle';
+  return CATEGORY_ICONS.find(([word]) => n.includes(word))?.[1] ?? 'help-circle-outline';
 }
 
-export function greeting(now = new Date()) {
-  const h = now.getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+/** A short job-ticket number from a report id, like 4A65. */
+export function ticket(id: string) {
+  return id.replace(/[^0-9a-f]/gi, '').slice(0, 4).toUpperCase();
 }
 
 export function timeAgo(iso: string, now = Date.now()) {

@@ -43,7 +43,6 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
   return (
     <Screen>
       <FormHeader
-        icon="mail-open"
         title="Check your email"
         subtitle={`We sent a 6-digit code to ${email}. It can take a minute to arrive.`}
       />
@@ -59,8 +58,8 @@ export function VerifyCodeScreen({ navigation, route }: ScreenProps<'VerifyCode'
         maxLength={6}
       />
       <Message text={error} />
-      <Button title="Verify and continue" icon="checkmark-circle" onPress={submit} busy={busy} disabled={code.length !== 6} />
-      <Button title="Send a new code" icon="refresh" onPress={resend} busy={resending} link />
+      <Button title="Verify and continue" onPress={submit} busy={busy} disabled={code.length !== 6} />
+      <Button title="Send a new code" onPress={resend} busy={resending} link />
     </Screen>
   );
 }

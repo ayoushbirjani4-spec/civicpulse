@@ -1,6 +1,9 @@
 import { isRunningInExpoGo } from 'expo';
 import type { ComponentType } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { Text } from '../components/ui';
+import { type } from '../theme';
 
 // MapLibre is native code that Expo Go does not include. Importing it at the top of App.tsx
 // would crash the whole app in Expo Go, so the map module is loaded only when it can work.
@@ -25,6 +28,6 @@ export function MapGate() {
 
 const styles = StyleSheet.create({
   box: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 18, fontWeight: '600' },
-  text: { fontSize: 15, color: '#333', lineHeight: 21 },
+  title: type.heading,
+  text: type.body,
 });

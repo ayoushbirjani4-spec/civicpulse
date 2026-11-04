@@ -9,10 +9,10 @@ const user = {
 };
 const ago = (h) => new Date(Date.now() - h * 3600_000).toISOString();
 const reports = [
-  { id: 'r1', category_name: 'Pothole', state: 'received', pin_status: 'open', captured_at: ago(0.3), photo_url: 'https://picsum.photos/seed/road1/200', is_mocked: false, description: null },
-  { id: 'r2', category_name: 'Blocked drain', state: 'received', pin_status: 'pending_repair', captured_at: ago(26), photo_url: 'https://picsum.photos/seed/drain2/200', is_mocked: false, description: null },
-  { id: 'r3', category_name: 'Waterlogged road', state: 'merged', pin_status: 'closed', captured_at: ago(24 * 6), photo_url: null, is_mocked: false, description: null },
-  { id: 'r4', category_name: 'Fallen branch or debris', state: 'rejected', pin_status: 'open', captured_at: ago(24 * 12), photo_url: 'https://picsum.photos/seed/tree4/200', is_mocked: true, description: null },
+  { id: '4a65f666-6131-4331-b059-271913cf4a85', category_name: 'Pothole', state: 'received', pin_status: 'open', captured_at: ago(0.3), photo_url: 'https://picsum.photos/seed/road1/200', is_mocked: false, description: null },
+  { id: '9c1e2b07-5d3a-4f6e-8a21-7b0c4d9e1f32', category_name: 'Blocked drain', state: 'received', pin_status: 'pending_repair', captured_at: ago(26), photo_url: 'https://picsum.photos/seed/drain2/200', is_mocked: false, description: null },
+  { id: 'b37d90aa-12c4-4e8b-9f05-3e6a7c2d8b14', category_name: 'Waterlogged road', state: 'merged', pin_status: 'closed', captured_at: ago(24 * 6), photo_url: null, is_mocked: false, description: null },
+  { id: '0f82c5e1-7a9b-4c3d-8e6f-1a2b3c4d5e6f', category_name: 'Fallen branch or debris', state: 'rejected', pin_status: 'open', captured_at: ago(24 * 12), photo_url: 'https://picsum.photos/seed/tree4/200', is_mocked: true, description: null },
 ];
 const categories = [
   { id: 'c1', slug: 'pothole', name: 'Pothole', department: 'roads' },

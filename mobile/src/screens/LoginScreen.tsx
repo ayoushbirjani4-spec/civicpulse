@@ -1,18 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Hero, HeroTitle, Logo } from '../components/Hero';
-import { Button, Card, errorMessage, Field, Icon, Message, Screen } from '../components/ui';
+import { Button, Card, errorMessage, Field, Icon, Message, RoadTrack, Screen, StatusDot, Text, Wordmark } from '../components/ui';
+import { STAGES } from '../impact';
 import type { ScreenProps } from '../navigation';
-import { color, font, space } from '../theme';
-
-const PROMISES = [
-  { icon: 'camera' as const, text: 'Snap a road hazard in seconds' },
-  { icon: 'map' as const, text: 'See it land on the city map' },
-  { icon: 'checkmark-done' as const, text: 'Follow it until it is fixed' },
-];
+import { color, family, ICON, radius, space, type } from '../theme';
 
 export function LoginScreen({ navigation, route }: ScreenProps<'Login'>) {
   const { login } = useAuth();
@@ -37,32 +31,33 @@ export function LoginScreen({ navigation, route }: ScreenProps<'Login'>) {
     }
   }
 
-  const header = (
-    <Hero tall>
-      <View style={styles.brand}>
-        <Logo />
-        <Text style={styles.brandName}>CivicPulse</Text>
-      </View>
-      <HeroTitle title="Make your roads safer." subtitle="Spot it. Snap it. Get it fixed." />
-      <View style={styles.promises}>
-        {PROMISES.map((p) => (
-          <View key={p.text} style={styles.promise}>
-            <Icon name={p.icon} size={16} color={color.accent} />
-            <Text style={styles.promiseText}>{p.text}</Text>
-          </View>
-        ))}
-      </View>
-    </Hero>
-  );
-
   return (
-    <Screen header={header}>
-      <Card style={styles.card}>
-        <Text style={font.heading}>Welcome back</Text>
+    <Screen top>
+      <Wordmark />
+      <View style={styles.intro}>
+        <Text style={type.title}>Photograph a road hazard and follow it until it is fixed</Text>
+        <Text style={type.body}>Your report goes on the city repair map with its photo and place</Text>
+      </View>
+
+      {/* What a report looks like once it is in: the product's own job ticket, not a feature list. */}
+      <Card style={styles.sample} >
+        <View style={styles.sampleRow} accessible accessibilityLabel="Example report: pothole near the bus stop, in repair">
+          <View style={styles.sampleIcon}>
+            <Icon name="warning-outline" size={ICON} color={color.muted} />
+          </View>
+          <View style={styles.sampleText}>
+            <Text style={styles.sampleTitle}>Pothole near the bus stop</Text>
+            <Text style={type.meta}>Example · reported 2 d ago</Text>
+          </View>
+          <StatusDot label="In repair" tint={color.progress} />
+        </View>
+        <RoadTrack value={2 / 3} stops={STAGES} reached={1} />
+      </Card>
+
+      <View style={styles.form}>
         <Message text={route.params?.notice ?? null} success />
         <Field
           label="Email"
-          icon="mail-outline"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -72,38 +67,37 @@ export function LoginScreen({ navigation, route }: ScreenProps<'Login'>) {
         />
         <Field
           label="Password"
-          icon="lock-closed-outline"
           value={password}
           onChangeText={setPassword}
           autoComplete="current-password"
           secureTextEntry
         />
-        <View style={styles.forgot}>
-          <Button
-            title="Forgot password?"
-            link
-            onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
-          />
-        </View>
         <Message text={error} />
-        <Button title="Log in" icon="log-in-outline" onPress={submit} busy={busy} />
-      </Card>
-      <View style={styles.join}>
-        <Text style={font.body}>New to CivicPulse?</Text>
-        <Button title="Create a free account" secondary icon="person-add-outline" onPress={() => navigation.navigate('Register')} />
+        <Button title="Log in" onPress={submit} busy={busy} />
+        <Button title="Create an account" secondary onPress={() => navigation.navigate('Register')} />
+        <View style={styles.links}>
+          <Button title="Forgot password?" link onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })} />
+          <Button title="Server address" link onPress={() => navigation.navigate('Server')} />
+        </View>
       </View>
-      <Button title="Server address" link icon="server-outline" onPress={() => navigation.navigate('Server')} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  brand: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  brandName: { fontSize: 20, fontWeight: '800', color: color.onPrimary, letterSpacing: 0.2 },
-  promises: { gap: space.sm },
-  promise: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  promiseText: { color: color.onPrimary, fontSize: 14, fontWeight: '500' },
-  card: { marginTop: -56, gap: space.md },
-  forgot: { alignItems: 'flex-end', marginTop: -space.sm, marginBottom: -space.sm },
-  join: { gap: space.sm, alignItems: 'stretch', marginTop: space.sm },
+  intro: { gap: space.sm, marginTop: space.lg },
+  sample: { gap: space.md, padding: space.md },
+  sampleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  sampleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.small,
+    backgroundColor: color.raised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sampleText: { flex: 1, gap: 2 },
+  sampleTitle: { fontFamily: family.semibold, fontSize: 15, color: color.text },
+  form: { gap: space.md, marginTop: space.sm },
+  links: { flexDirection: 'row', justifyContent: 'space-between' },
 });
