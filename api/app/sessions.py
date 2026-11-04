@@ -5,7 +5,7 @@ import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import update
+from sqlalchemy import delete, or_, update
 from sqlalchemy.orm import Session
 
 from app.config import REFRESH_GRACE_SECONDS, REFRESH_TOKEN_DAYS
@@ -26,6 +26,14 @@ def _tokens(session: AuthSession) -> tuple[str, str]:
 
 def start(db: Session, user: User, device_id: str | None) -> tuple[str, str]:
     """A new session for this login. The caller commits."""
+    # Tidy up as we go: this user's sessions that ended over a month ago are of no further use.
+    cutoff = _now() - timedelta(days=30)
+    db.execute(
+        delete(AuthSession).where(
+            AuthSession.user_id == user.id,
+            or_(AuthSession.revoked_at < cutoff, AuthSession.expires_at < cutoff),
+        )
+    )
     session = AuthSession(
         user_id=user.id,
         device_id=device_id,

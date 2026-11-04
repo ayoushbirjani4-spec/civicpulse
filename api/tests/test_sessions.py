@@ -102,3 +102,15 @@ def test_a_refresh_token_for_another_users_session_is_refused(client, make_user)
 
 def test_bearer_helper_still_works(client, make_user):
     assert client.get("/me", headers=bearer(make_user())).status_code == 200
+
+
+def test_logging_in_clears_sessions_that_ended_long_ago(client, make_user):
+    user = make_user(email="a@example.com")
+    tokens(user)
+    with SessionLocal() as db:
+        db.execute(update(AuthSession).values(revoked_at=datetime.now(UTC) - timedelta(days=40)))
+        db.commit()
+    client.post("/auth/login", json={"email": "a@example.com", "password": PASSWORD})
+    with SessionLocal() as db:
+        remaining = db.scalars(select(AuthSession)).all()
+    assert len(remaining) == 1 and remaining[0].revoked_at is None

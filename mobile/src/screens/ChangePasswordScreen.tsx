@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { Alert, Text } from 'react-native';
 
 import { api } from '../api/client';
 import { Button, errorMessage, Field, Message, newPasswordProblem, Screen } from '../components/ui';
@@ -25,6 +25,7 @@ export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword
         method: 'POST',
         body: { current_password: current, new_password: password },
       });
+      Alert.alert('Password changed', 'Use your new password next time you log in on another phone.');
       navigation.goBack();
     } catch (e) {
       setError(errorMessage(e));
