@@ -41,7 +41,7 @@ export function MyReportsScreen({ navigation }: ScreenProps<'MyReports'>) {
     setRefreshing(true);
     setError(null);
     try {
-      await processQueue(user.id);
+      await processQueue(user.id, { now: true });
       setServer((await api<{ items: ServerReport[] }>('/reports/mine')).items);
     } catch (e) {
       setError(errorMessage(e));
@@ -100,7 +100,11 @@ export function MyReportsScreen({ navigation }: ScreenProps<'MyReports'>) {
                 </>
               ) : (
                 <Text style={styles.waiting}>
-                  {row.item.attempts === 0 ? 'Uploading...' : 'Waiting for signal, will upload automatically.'}
+                  {row.item.attempts === 0
+                    ? 'Uploading...'
+                    : row.item.last_error === 'no_connection'
+                      ? 'Waiting for signal, will upload automatically. Pull down to retry now.'
+                      : `Upload failed (${row.item.last_error}). Will try again; pull down to retry now.`}
                 </Text>
               )
             ) : (

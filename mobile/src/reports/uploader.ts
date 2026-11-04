@@ -29,19 +29,23 @@ async function upload(item: queue.QueuedReport) {
   form.append('is_mocked', item.is_mocked ? 'true' : 'false');
   form.append('captured_at', item.captured_at);
   if (item.description) form.append('description', item.description);
-  // React Native's fetch reads a local file from this { uri, name, type } shape.
-  form.append('photo', { uri: item.photo_uri, name: 'photo.jpg', type: 'image/jpeg' } as unknown as Blob);
+  // Expo's fetch (the app's global fetch) cannot read React Native's { uri, name, type } shape;
+  // it throws before sending. An expo-file-system File is a Blob it can read.
+  form.append('photo', new File(item.photo_uri), 'photo.jpg');
   await api('/reports', { method: 'POST', body: form });
 }
 
 let running = false;
 
-/** Upload every report that is due. The item leaves the queue only after the server confirms it. */
-export async function processQueue(userId: string) {
+/**
+ * Upload every report that is due, or every pending one when `now` is set (the user asked to retry).
+ * The item leaves the queue only after the server confirms it.
+ */
+export async function processQueue(userId: string, { now = false } = {}) {
   if (running) return;
   running = true;
   try {
-    for (const item of await queue.dueItems(userId, Date.now())) {
+    for (const item of await queue.dueItems(userId, now ? Number.MAX_SAFE_INTEGER : Date.now())) {
       try {
         await upload(item);
         await queue.remove(item.client_uuid);
@@ -55,7 +59,12 @@ export async function processQueue(userId: string) {
           await queue.markFailed(item.client_uuid, (error as ApiError).code);
         } else {
           const attempts = item.attempts + 1;
-          const reason = error instanceof NetworkError ? 'no_connection' : error instanceof ApiError ? error.code : 'unknown';
+          const reason =
+            error instanceof NetworkError
+              ? 'no_connection'
+              : error instanceof ApiError
+                ? error.code
+                : String((error as Error)?.message ?? error).slice(0, 120);
           await queue.retryLater(item.client_uuid, attempts, Date.now() + backoff(attempts), reason);
           // Without a connection the next item will fail the same way.
           if (error instanceof NetworkError) break;

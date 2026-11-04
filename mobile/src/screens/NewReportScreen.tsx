@@ -67,7 +67,7 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
 
   async function capture() {
     if (!camera.current || !ready) return;
-    const shot = await camera.current.takePictureAsync({ quality: 0.8, exif: false });
+    const shot = await camera.current.takePictureAsync({ quality: 0.6, exif: false });
     if (!shot) return;
     setPhoto({ uri: shot.uri, takenAt: new Date().toISOString() });
     locate();
