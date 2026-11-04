@@ -11,6 +11,7 @@ export type RootStack = {
   Profile: undefined;
   ChangePassword: undefined;
   Map: undefined;
+  Server: undefined;
 };
 
 export type ScreenProps<Name extends keyof RootStack> = NativeStackScreenProps<RootStack, Name>;

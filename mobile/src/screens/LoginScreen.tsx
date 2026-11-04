@@ -54,6 +54,7 @@ export function LoginScreen({ navigation, route }: ScreenProps<'Login'>) {
         secondary
       />
       <Button title="Create an account" onPress={() => navigation.navigate('Register')} secondary />
+      <Button title="Server address" onPress={() => navigation.navigate('Server')} secondary />
     </Screen>
   );
 }

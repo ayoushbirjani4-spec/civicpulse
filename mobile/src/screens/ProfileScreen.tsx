@@ -35,6 +35,7 @@ export function ProfileScreen({ navigation }: ScreenProps<'Profile'>) {
       <Message text={saved} success />
       <Button title="Save" onPress={save} busy={busy} />
       <Button title="Change password" onPress={() => navigation.navigate('ChangePassword')} secondary />
+      <Button title="Server address" onPress={() => navigation.navigate('Server')} secondary />
       <Button title="Log out" onPress={logout} secondary />
     </Screen>
   );

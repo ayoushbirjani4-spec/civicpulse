@@ -11,6 +11,7 @@ import { ChangePasswordScreen } from './src/screens/ChangePasswordScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { ResetPasswordScreen } from './src/screens/ResetPasswordScreen';
+import { ServerScreen } from './src/screens/ServerScreen';
 import { MapGate } from './src/screens/MapGate';
 import { MyReportsScreen } from './src/screens/MyReportsScreen';
 import { NewReportScreen } from './src/screens/NewReportScreen';
@@ -64,6 +65,7 @@ function Routes() {
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: 'New password' }} />
         </>
       )}
+      <Stack.Screen name="Server" component={ServerScreen} options={{ title: 'Server address' }} />
     </Stack.Navigator>
   );
 }

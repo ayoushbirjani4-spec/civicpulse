@@ -1,6 +1,37 @@
+import * as SecureStore from 'expo-secure-store';
+
 import * as session from '../auth/sessionStore';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const API_URL_KEY = 'civicpulse.api_url';
+
+// The laptop running the server gets a new Wi-Fi address now and then, so the
+// installed app lets the user change it instead of needing a new build.
+let apiUrl = DEFAULT_API_URL;
+const apiUrlLoaded = SecureStore.getItemAsync(API_URL_KEY)
+  .then((saved) => {
+    if (saved) apiUrl = saved;
+  })
+  .catch(() => {});
+
+export async function getApiUrl() {
+  await apiUrlLoaded;
+  return apiUrl;
+}
+
+/** Saves the server address after checking that a CivicPulse server answers there. */
+export async function setApiUrl(input: string) {
+  const url = input.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\/[^/\s]+$/.test(url)) throw new ApiError(0, 'bad_server_address');
+  try {
+    const response = await fetch(`${url}/health`);
+    if (!response.ok) throw new Error();
+  } catch {
+    throw new NetworkError('network_error');
+  }
+  await SecureStore.setItemAsync(API_URL_KEY, url);
+  apiUrl = url;
+}
 
 /** The server answered with an error. `code` is the server's `detail` string. */
 export class ApiError extends Error {
@@ -32,8 +63,9 @@ async function send(path: string, { method = 'GET', body }: Options, token: stri
   // fetch sets the multipart boundary itself, so a form must not get a Content-Type here.
   if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
+  const base = await getApiUrl();
   try {
-    return await fetch(`${API_URL}${path}`, {
+    return await fetch(`${base}${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),

@@ -26,6 +26,7 @@ const MESSAGES: Record<string, string> = {
   password_contains_email: 'Your password must not contain your email address.',
   wrong_password: 'Your current password is not correct.',
   same_password: 'The new password must be different from the current one.',
+  bad_server_address: 'Enter an address like http://192.168.1.3:8000',
   password_too_simple: 'Use at least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.',
 };
 
