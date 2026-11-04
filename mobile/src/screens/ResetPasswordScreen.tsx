@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, Screen } from '../components/ui';
+import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPassword'>) {
@@ -64,7 +64,7 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
         maxLength={6}
       />
       <Field
-        label="New password (at least 8 characters)"
+        label="New password"
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
@@ -77,6 +77,7 @@ export function ResetPasswordScreen({ navigation, route }: ScreenProps<'ResetPas
         autoComplete="new-password"
         secureTextEntry
       />
+      <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
       <Button title="Set new password" onPress={submit} busy={busy} />
       <Button title="Send a new code" onPress={resend} busy={resending} secondary />

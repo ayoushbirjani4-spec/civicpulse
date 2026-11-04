@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   TextInputProps,
+  View,
 } from 'react-native';
 
 import { ApiError, NetworkError } from '../api/client';
@@ -25,13 +26,38 @@ const MESSAGES: Record<string, string> = {
   password_contains_email: 'Your password must not contain your email address.',
   wrong_password: 'Your current password is not correct.',
   same_password: 'The new password must be different from the current one.',
+  password_too_simple: 'Use at least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.',
 };
+
+// The same rule the server enforces in password_problem (api/app/security.py).
+const PASSWORD_RULES: { label: string; test: (p: string) => boolean }[] = [
+  { label: 'At least 8 characters', test: (p) => p.length >= 8 },
+  { label: 'An uppercase letter (A–Z)', test: (p) => /[A-Z]/.test(p) },
+  { label: 'A lowercase letter (a–z)', test: (p) => /[a-z]/.test(p) },
+  { label: 'A number (0–9)', test: (p) => /[0-9]/.test(p) },
+  { label: 'A symbol, such as ! @ # - _', test: (p) => /[^A-Za-z0-9\s]/.test(p) },
+];
 
 /** Checks the phone can do before asking the server. Returns a message, or null if fine. */
 export function newPasswordProblem(password: string, confirm: string): string | null {
-  if (password.length < 8) return 'Passwords need at least 8 characters.';
+  if (!PASSWORD_RULES.every((r) => r.test(password))) return MESSAGES.password_too_simple;
   if (password !== confirm) return 'The two passwords do not match.';
   return null;
+}
+
+/** A live checklist under a new-password field, ticking each rule as it is met. */
+export function PasswordRules({ password, confirm }: { password: string; confirm: string }) {
+  const rows = [...PASSWORD_RULES.map((r) => ({ label: r.label, ok: r.test(password) }))];
+  if (confirm.length > 0) rows.push({ label: 'Both passwords match', ok: password === confirm });
+  return (
+    <View accessibilityLabel="Password requirements" style={styles.rules}>
+      {rows.map((r) => (
+        <Text key={r.label} style={[styles.rule, r.ok ? styles.ruleOk : styles.ruleTodo]}>
+          {r.ok ? '✓' : '○'}  {r.label}
+        </Text>
+      ))}
+    </View>
+  );
 }
 
 export function errorMessage(error: unknown): string {
@@ -119,4 +145,8 @@ const styles = StyleSheet.create({
   secondaryText: { color: PRIMARY },
   message: { color: '#b3261e', fontSize: 14, marginTop: 8 },
   success: { color: PRIMARY },
+  rules: { marginTop: 4, gap: 2 },
+  rule: { fontSize: 13 },
+  ruleOk: { color: PRIMARY },
+  ruleTodo: { color: '#5f6b73' },
 });

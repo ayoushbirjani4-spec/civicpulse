@@ -67,7 +67,16 @@ def password_problem(password: str, email: str) -> str | None:
         return "weak_password"
     if len(local) >= 4 and local in lowered:
         return "password_contains_email"
+    if not all(
+        any(test(c) for c in password)
+        for test in (str.isupper, str.islower, str.isdigit, lambda c: not c.isalnum() and not c.isspace())
+    ):
+        return "password_too_simple"
     return None
+
+
+# The same rule the app shows as a checklist, for error messages and documentation.
+PASSWORD_RULE = "at least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol"
 
 
 def _create_token(claims: dict, token_type: str, lifetime: timedelta) -> str:

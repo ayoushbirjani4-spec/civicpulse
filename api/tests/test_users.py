@@ -81,7 +81,7 @@ def test_create_admin_script(client):
 
 def test_create_admin_promotes_without_changing_password(client, make_user):
     make_user(email="boss@example.com")
-    assert create_admin("boss@example.com", "The Boss", "a-different-password") == "promoted"
+    assert create_admin("boss@example.com", "The Boss", "A-Different-Pass-9") == "promoted"
     with SessionLocal() as db:
         user = db.scalar(select(User).where(User.email == "boss@example.com"))
     assert user.role == "admin"

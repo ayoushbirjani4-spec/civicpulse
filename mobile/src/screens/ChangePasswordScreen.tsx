@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Text } from 'react-native';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, Screen } from '../components/ui';
+import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword'>) {
@@ -45,7 +45,7 @@ export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword
         secureTextEntry
       />
       <Field
-        label="New password (at least 8 characters)"
+        label="New password"
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
@@ -58,6 +58,7 @@ export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword
         autoComplete="new-password"
         secureTextEntry
       />
+      <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
       <Button title="Change password" onPress={submit} busy={busy} />
     </Screen>

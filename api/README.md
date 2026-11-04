@@ -100,7 +100,8 @@ stays logged in and one left idle for 14 days must log in again. An old refresh 
 accepted once within 60 seconds (a reply lost on a weak connection); after that, using it
 ends the session, because only a stolen copy would still have it.
 
-New passwords need 8 to 128 characters and are refused if they are common, a sequence or
+New passwords need 8 to 128 characters with an uppercase letter, a lowercase letter, a number
+and a symbol (`password_too_simple`). They are also refused if they are common, a sequence or
 repeated characters (`weak_password`), or contain the email name (`password_contains_email`).
 Sign-up and reset codes are separate: one never works as the other.
 

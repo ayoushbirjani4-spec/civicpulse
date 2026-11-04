@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, Screen } from '../components/ui';
+import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
@@ -51,7 +51,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
         keyboardType="email-address"
       />
       <Field
-        label="Password (at least 8 characters)"
+        label="Password"
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
@@ -64,6 +64,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
         autoComplete="new-password"
         secureTextEntry
       />
+      <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
       <Button title="Create account" onPress={submit} busy={busy} />
     </Screen>

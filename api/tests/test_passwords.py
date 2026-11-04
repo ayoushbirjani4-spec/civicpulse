@@ -6,7 +6,7 @@ from app.models import User
 from tests.conftest import PASSWORD, tokens
 
 EMAIL = "ayesha@example.com"
-NEW = "river-lamp-orange-42"
+NEW = "River-Lamp-42!"
 
 
 def login(client, password, email=EMAIL):
@@ -26,6 +26,11 @@ def me(client, access):
         ("abababab", "weak_password"),
         ("abcdefghij", "weak_password"),
         ("Ayesha-2026!", "password_contains_email"),
+        ("river-lamp-42!", "password_too_simple"),
+        ("RIVER-LAMP-42!", "password_too_simple"),
+        ("River-Lamp-Orange", "password_too_simple"),
+        ("RiverLamp4242", "password_too_simple"),
+        ("River Lamp 42", "password_too_simple"),
     ],
 )
 def test_easy_passwords_are_refused_at_sign_up(client, outbox, password, problem):
@@ -170,3 +175,18 @@ def test_password_hash_changes(client, make_user):
     with SessionLocal() as db:
         after = db.scalar(select(User.password_hash))
     assert before != after and after.startswith("$argon2")
+
+
+def test_reset_refuses_a_password_without_a_symbol(client, make_user, outbox):
+    make_user(email=EMAIL)
+    client.post("/auth/forgot-password", json={"email": EMAIL})
+    response = client.post(
+        "/auth/reset-password", json={"email": EMAIL, "code": outbox[EMAIL], "new_password": "RiverLamp42"}
+    )
+    assert (response.status_code, response.json()["detail"]) == (422, "password_too_simple")
+
+
+def test_change_refuses_a_password_without_an_uppercase_letter(client, make_user):
+    access, _ = tokens(make_user(email=EMAIL))
+    response = change(client, access, PASSWORD, "river-lamp-42!")
+    assert (response.status_code, response.json()["detail"]) == (422, "password_too_simple")

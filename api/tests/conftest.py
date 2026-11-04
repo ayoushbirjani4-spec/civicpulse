@@ -31,7 +31,7 @@ from app.models import User
 from app.security import hash_password
 
 API_DIR = Path(__file__).resolve().parent.parent
-PASSWORD = "correct-horse-battery"
+PASSWORD = "Correct-Horse-7"
 
 
 @pytest.fixture(scope="session", autouse=True)
