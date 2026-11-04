@@ -1,17 +1,23 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, Screen } from '../components/ui';
+import { Button, errorMessage, Field, Message, newPasswordProblem, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    const problem = newPasswordProblem(password, confirm);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -48,6 +54,13 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
         label="Password (at least 8 characters)"
         value={password}
         onChangeText={setPassword}
+        autoComplete="new-password"
+        secureTextEntry
+      />
+      <Field
+        label="Confirm password"
+        value={confirm}
+        onChangeText={setConfirm}
         autoComplete="new-password"
         secureTextEntry
       />

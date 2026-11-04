@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app import sessions
 from app.db import get_db
-from app.deps import get_current_user, limit_writes
-from app.models import Device, User
-from app.schemas import DeviceIn, ProfilePatch, UserOut
+from app.deps import get_current_session, get_current_user, limit_writes
+from app.models import AuthSession, Device, User
+from app.rate_limit import enforce
+from app.routers.auth import check_password
+from app.schemas import ChangePasswordIn, DeviceIn, ProfilePatch, UserOut
+from app.security import hash_password, verify_password
 
 router = APIRouter(tags=["users"])
 
@@ -47,5 +51,26 @@ def register_device(
             },
         )
     )
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post("/me/password", status_code=204, dependencies=[Depends(limit_writes)])
+def change_password(
+    body: ChangePasswordIn,
+    user: User = Depends(get_current_user),
+    current: AuthSession = Depends(get_current_session),
+    db: Session = Depends(get_db),
+):
+    # A stolen phone that is already logged in must not be able to guess the password here.
+    enforce("change_password", 600, account=(str(user.id), 5))
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="wrong_password")
+    check_password(body.new_password, user.email)
+    if verify_password(body.new_password, user.password_hash):
+        raise HTTPException(status_code=422, detail="same_password")
+    user.password_hash = hash_password(body.new_password)
+    # This phone stays logged in; every other device has to log in with the new password.
+    sessions.end_all(db, user.id, keep=current.id)
     db.commit()
     return Response(status_code=204)

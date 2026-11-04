@@ -14,12 +14,14 @@ from sqlalchemy import select
 from app.db import SessionLocal
 from app.models import User
 from app.schemas import RegisterIn
-from app.security import hash_password
+from app.security import hash_password, password_problem
 
 
 def create_admin(email: str, display_name: str, password: str) -> str:
     """Create an admin, or promote the existing account (keeping its password)."""
     body = RegisterIn(email=email, password=password, display_name=display_name)
+    if problem := password_problem(body.password, body.email):
+        raise ValueError(f"Choose a stronger password ({problem}).")
     with SessionLocal() as db:
         user = db.scalar(select(User).where(User.email == body.email))
         if user is None:

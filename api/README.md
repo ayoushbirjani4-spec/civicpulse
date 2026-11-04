@@ -45,9 +45,13 @@ docker compose exec api alembic revision --autogenerate -m "describe the change"
 | `POST /auth/register` | Create an account and email a code | None |
 | `POST /auth/verify-email` | Confirm the code | None |
 | `POST /auth/resend-code` | Replace an expired or locked code | None |
-| `POST /auth/login` | Get access and refresh tokens | None |
-| `POST /auth/refresh` | Get a new access token | Refresh token |
+| `POST /auth/login` | Get access and refresh tokens; starts a session | None |
+| `POST /auth/refresh` | Get a new access token and a new refresh token | Refresh token |
+| `POST /auth/logout` | End this device's session | Refresh token |
+| `POST /auth/forgot-password` | Email a reset code (same answer for unknown emails) | None |
+| `POST /auth/reset-password` | Set a new password with the code; logs out every device | None |
 | `GET`, `PATCH /me` | Read or edit your profile | User |
+| `POST /me/password` | Change password; logs out every other device | User |
 | `POST /devices` | Register this phone | User |
 | `GET /admin/ping` | Check admin access | Admin |
 
@@ -87,9 +91,23 @@ Photos are served by a separate app, `app/media.py`, on port 8001, with `nosniff
 locked-down content policy. Set `MEDIA_BASE_URL` in `.env` to your LAN address when
 testing on a phone.
 
+### Sessions and passwords
+
+Every login creates a row in `auth_sessions`, and both tokens carry its id. Logging out,
+resetting or changing the password ends sessions, which stops their access tokens at once.
+Each refresh returns a new refresh token and moves the 14-day deadline, so a phone in use
+stays logged in and one left idle for 14 days must log in again. An old refresh token is
+accepted once within 60 seconds (a reply lost on a weak connection); after that, using it
+ends the session, because only a stolen copy would still have it.
+
+New passwords need 8 to 128 characters and are refused if they are common, a sequence or
+repeated characters (`weak_password`), or contain the email name (`password_contains_email`).
+Sign-up and reset codes are separate: one never works as the other.
+
 For new routes, use these from `app/deps.py`:
 
-- `get_current_user`: any verified, active account. Refuses everyone else.
+- `get_current_user`: any verified, active account with a live session. Refuses everyone else.
+- `get_current_session`: the session behind the request, for routes that end other sessions.
 - `require_admin`: admins only. Routes on the `/admin` router get this automatically.
 - `limit_writes`: the shared per-account and per-device limit.
 

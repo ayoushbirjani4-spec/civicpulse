@@ -24,11 +24,11 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from app import mailer, rate_limit
+from app import mailer, rate_limit, sessions
 from app.db import SessionLocal, engine
 from app.main import app
 from app.models import User
-from app.security import create_access_token, hash_password
+from app.security import hash_password
 
 API_DIR = Path(__file__).resolve().parent.parent
 PASSWORD = "correct-horse-battery"
@@ -50,7 +50,7 @@ def database():
 def clean_tables(database):
     with engine.begin() as conn:
         conn.execute(
-            text("TRUNCATE users, devices, email_otps, rate_limit_counters, images, reports, pins CASCADE")
+            text("TRUNCATE users, devices, email_otps, auth_sessions, rate_limit_counters, images, reports, pins CASCADE")
         )
 
 
@@ -59,6 +59,7 @@ def outbox(monkeypatch):
     """Emails that would have gone out, as {email: latest code}."""
     sent = {}
     monkeypatch.setattr(mailer, "send_verification_code", lambda email, code: sent.update({email: code}))
+    monkeypatch.setattr(mailer, "send_password_reset_code", lambda email, code: sent.update({email: code}))
     return sent
 
 
@@ -108,5 +109,13 @@ def freeze_window(monkeypatch):
     return clock
 
 
+def tokens(user, device=None):
+    """A real login session for `user`: (access_token, refresh_token)."""
+    with SessionLocal() as db:
+        pair = sessions.start(db, user, device)
+        db.commit()
+    return pair
+
+
 def bearer(user):
-    return {"Authorization": f"Bearer {create_access_token(user.id)}"}
+    return {"Authorization": f"Bearer {tokens(user)[0]}"}

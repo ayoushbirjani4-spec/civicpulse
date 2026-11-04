@@ -21,7 +21,18 @@ const MESSAGES: Record<string, string> = {
   account_disabled: 'This account has been disabled.',
   rate_limited: 'Too many attempts. Wait a minute and try again.',
   invalid_input: 'Please check what you entered. Passwords need at least 8 characters.',
+  weak_password: 'That password is too easy to guess. Try a longer phrase of unrelated words.',
+  password_contains_email: 'Your password must not contain your email address.',
+  wrong_password: 'Your current password is not correct.',
+  same_password: 'The new password must be different from the current one.',
 };
+
+/** Checks the phone can do before asking the server. Returns a message, or null if fine. */
+export function newPasswordProblem(password: string, confirm: string): string | null {
+  if (password.length < 8) return 'Passwords need at least 8 characters.';
+  if (password !== confirm) return 'The two passwords do not match.';
+  return null;
+}
 
 export function errorMessage(error: unknown): string {
   if (error instanceof NetworkError) return 'Could not reach the server. Check your connection.';

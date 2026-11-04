@@ -65,8 +65,9 @@ function refreshAccessToken(): Promise<string | null> {
     );
     if (response.status === 401) return null;
     if (!response.ok) throw await toError(response);
-    const { access_token } = await response.json();
-    await session.setAccessToken(access_token);
+    // The old refresh token stops working, so the new one must be kept before anything else.
+    const { access_token, refresh_token } = await response.json();
+    await session.saveTokens(access_token, refresh_token);
     return access_token as string;
   })().finally(() => {
     refreshing = null;

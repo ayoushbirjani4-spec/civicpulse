@@ -1,0 +1,64 @@
+import { useState } from 'react';
+import { Text } from 'react-native';
+
+import { api } from '../api/client';
+import { Button, errorMessage, Field, Message, newPasswordProblem, Screen } from '../components/ui';
+import type { ScreenProps } from '../navigation';
+
+export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword'>) {
+  const [current, setCurrent] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    const problem = newPasswordProblem(password, confirm);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/me/password', {
+        method: 'POST',
+        body: { current_password: current, new_password: password },
+      });
+      navigation.goBack();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Screen>
+      <Text>Other phones logged in to this account will be logged out. This phone stays logged in.</Text>
+      <Field
+        label="Current password"
+        value={current}
+        onChangeText={setCurrent}
+        autoComplete="current-password"
+        secureTextEntry
+      />
+      <Field
+        label="New password (at least 8 characters)"
+        value={password}
+        onChangeText={setPassword}
+        autoComplete="new-password"
+        secureTextEntry
+      />
+      <Field
+        label="Confirm new password"
+        value={confirm}
+        onChangeText={setConfirm}
+        autoComplete="new-password"
+        secureTextEntry
+      />
+      <Message text={error} />
+      <Button title="Change password" onPress={submit} busy={busy} />
+    </Screen>
+  );
+}

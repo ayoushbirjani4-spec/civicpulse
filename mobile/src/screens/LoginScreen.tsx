@@ -48,6 +48,11 @@ export function LoginScreen({ navigation, route }: ScreenProps<'Login'>) {
       />
       <Message text={error} />
       <Button title="Log in" onPress={submit} busy={busy} />
+      <Button
+        title="Forgot password?"
+        onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
+        secondary
+      />
       <Button title="Create an account" onPress={() => navigation.navigate('Register')} secondary />
     </Screen>
   );

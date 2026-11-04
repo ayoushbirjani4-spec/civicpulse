@@ -3,7 +3,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import User
+from app.models import AuthSession, User
 from app.rate_limit import device_id, enforce
 from app.security import decode_token
 
@@ -13,16 +13,23 @@ _UNAUTHENTICATED = HTTPException(
 )
 
 
-def get_current_user(
+def get_current_session(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = Depends(get_db),
-) -> User:
+) -> AuthSession:
+    """The login session behind the access token. A session ended by logout or a password
+    change stops its access tokens at once, not when they expire."""
+    claims = decode_token(credentials.credentials, "access") if credentials else None
+    session = db.get(AuthSession, claims["sid"]) if claims else None
+    if session is None or session.user_id != claims["sub"] or session.revoked_at is not None:
+        raise _UNAUTHENTICATED
+    return session
+
+
+def get_current_user(session: AuthSession = Depends(get_current_session), db: Session = Depends(get_db)) -> User:
     """The caller's account. Checked against the database on every request, so disabling
     an account takes effect immediately, and only verified accounts ever get through."""
-    if credentials is None:
-        raise _UNAUTHENTICATED
-    user_id = decode_token(credentials.credentials, "access")
-    user = db.get(User, user_id) if user_id else None
+    user = db.get(User, session.user_id)
     if user is None:
         raise _UNAUTHENTICATED
     if user.status != "active":

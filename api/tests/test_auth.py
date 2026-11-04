@@ -6,8 +6,8 @@ from sqlalchemy import select, update
 from app.config import JWT_SECRET
 from app.db import SessionLocal
 from app.models import EmailOtp, User
-from app.security import create_access_token, create_refresh_token, hash_otp
-from tests.conftest import PASSWORD
+from app.security import hash_otp
+from tests.conftest import PASSWORD, tokens
 
 EMAIL = "ayesha@example.com"
 SIGNUP = {"email": EMAIL, "password": PASSWORD, "display_name": "Ayesha"}
@@ -126,23 +126,23 @@ def test_disabled_account_cannot_log_in(client, make_user):
 
 def test_refresh_gives_a_working_access_token(client, make_user):
     user = make_user()
-    response = client.post("/auth/refresh", json={"refresh_token": create_refresh_token(user.id)})
+    response = client.post("/auth/refresh", json={"refresh_token": tokens(user)[1]})
     assert response.status_code == 200
     token = response.json()["access_token"]
     assert client.get("/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
 
 
 def test_access_token_cannot_refresh_and_refresh_token_cannot_authenticate(client, make_user):
-    user = make_user()
-    response = client.post("/auth/refresh", json={"refresh_token": create_access_token(user.id)})
+    access, refresh = tokens(make_user())
+    response = client.post("/auth/refresh", json={"refresh_token": access})
     assert response.status_code == 401
-    headers = {"Authorization": f"Bearer {create_refresh_token(user.id)}"}
+    headers = {"Authorization": f"Bearer {refresh}"}
     assert client.get("/me", headers=headers).status_code == 401
 
 
 def test_refresh_is_refused_once_account_is_disabled(client, make_user):
     user = make_user(status="disabled")
-    response = client.post("/auth/refresh", json={"refresh_token": create_refresh_token(user.id)})
+    response = client.post("/auth/refresh", json={"refresh_token": tokens(user)[1]})
     assert response.status_code == 401
 
 
@@ -161,8 +161,9 @@ def test_expired_and_forged_tokens_are_refused(client, make_user):
 
 def test_token_lifetimes_match_the_spec(make_user):
     user = make_user()
-    access = jwt.decode(create_access_token(user.id), JWT_SECRET, algorithms=["HS256"])
-    refresh = jwt.decode(create_refresh_token(user.id), JWT_SECRET, algorithms=["HS256"])
+    pair = tokens(user)
+    access = jwt.decode(pair[0], JWT_SECRET, algorithms=["HS256"])
+    refresh = jwt.decode(pair[1], JWT_SECRET, algorithms=["HS256"])
     assert access["exp"] - access["iat"] == 15 * 60
     assert refresh["exp"] - refresh["iat"] == 14 * 24 * 3600
 

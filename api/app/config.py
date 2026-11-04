@@ -6,7 +6,11 @@ SQLALCHEMY_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 ACCESS_TOKEN_MINUTES = 15
+# Idle limit: each refresh moves the deadline, so a phone in regular use stays logged in.
 REFRESH_TOKEN_DAYS = 14
+# A refresh token replaced less than this long ago still works once, for a reply the phone
+# never received on a bad connection. Later use counts as theft and ends the session.
+REFRESH_GRACE_SECONDS = 60
 
 OTP_MINUTES = 10
 OTP_MAX_ATTEMPTS = 5

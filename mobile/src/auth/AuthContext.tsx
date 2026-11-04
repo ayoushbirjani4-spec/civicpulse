@@ -33,8 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   const logout = useCallback(async () => {
+    const refreshToken = await session.getRefreshToken();
     await session.clearSession();
     setUser(null);
+    if (refreshToken) {
+      // Ends the session on the server too. With no signal the phone still logs out;
+      // the server session then lapses after 14 idle days.
+      api('/auth/logout', { method: 'POST', auth: false, body: { refresh_token: refreshToken } }).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {

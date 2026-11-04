@@ -3,8 +3,9 @@ import { Text } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
 import { Button, errorMessage, Field, Message, Screen } from '../components/ui';
+import type { ScreenProps } from '../navigation';
 
-export function ProfileScreen() {
+export function ProfileScreen({ navigation }: ScreenProps<'Profile'>) {
   const { user, logout, updateDisplayName } = useAuth();
   const [displayName, setDisplayName] = useState(user?.display_name ?? '');
   const [busy, setBusy] = useState(false);
@@ -33,6 +34,7 @@ export function ProfileScreen() {
       <Message text={error} />
       <Message text={saved} success />
       <Button title="Save" onPress={save} busy={busy} />
+      <Button title="Change password" onPress={() => navigation.navigate('ChangePassword')} secondary />
       <Button title="Log out" onPress={logout} secondary />
     </Screen>
   );

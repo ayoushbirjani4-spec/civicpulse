@@ -30,11 +30,14 @@ export async function getDeviceId(): Promise<string> {
 
 export const getAccessToken = () => SecureStore.getItemAsync(ACCESS_TOKEN);
 export const getRefreshToken = () => SecureStore.getItemAsync(REFRESH_TOKEN);
-export const setAccessToken = (token: string) => SecureStore.setItemAsync(ACCESS_TOKEN, token);
-
-export async function saveSession(accessToken: string, refreshToken: string, user: User) {
+/** The server replaces the refresh token on every refresh, so both are stored together. */
+export async function saveTokens(accessToken: string, refreshToken: string) {
   await SecureStore.setItemAsync(ACCESS_TOKEN, accessToken);
   await SecureStore.setItemAsync(REFRESH_TOKEN, refreshToken);
+}
+
+export async function saveSession(accessToken: string, refreshToken: string, user: User) {
+  await saveTokens(accessToken, refreshToken);
   await saveUser(user);
 }
 

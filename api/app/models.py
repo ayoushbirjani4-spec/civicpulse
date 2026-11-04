@@ -53,13 +53,35 @@ class Device(Base):
 
 class EmailOtp(Base):
     __tablename__ = "email_otps"
+    __table_args__ = (CheckConstraint("purpose IN ('verify', 'reset')", name="ck_email_otps_purpose"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # A sign-up code must never reset a password, and a reset code must never verify an email.
+    purpose: Mapped[str] = mapped_column(String(10), default="verify", server_default="verify")
     code_hash: Mapped[str] = mapped_column(String(64))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AuthSession(Base):
+    """One row per login. Every token carries the session id, so ending the session ends
+    its refresh token and its access tokens together."""
+
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    device_id: Mapped[str | None] = mapped_column(String(128))
+    # Random ids of the current and the replaced refresh token, so a replayed old token is spotted.
+    refresh_jti: Mapped[str] = mapped_column(String(64))
+    previous_jti: Mapped[str | None] = mapped_column(String(64))
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class RateLimitCounter(Base):

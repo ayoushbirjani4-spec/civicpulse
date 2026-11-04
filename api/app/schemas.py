@@ -6,11 +6,12 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, Str
 
 Email = Annotated[EmailStr, AfterValidator(str.lower)]
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=40)]
+Password = Annotated[str, Field(min_length=8, max_length=128)]
 
 
 class RegisterIn(BaseModel):
     email: Email
-    password: str = Field(min_length=8, max_length=128)
+    password: Password
     display_name: DisplayName
 
 
@@ -33,12 +34,32 @@ class LoginIn(BaseModel):
 
 
 class RefreshIn(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(max_length=2048)
 
 
-class AccessTokenOut(BaseModel):
+class LogoutIn(RefreshIn):
+    pass
+
+
+class TokenPairOut(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+
+class ForgotPasswordIn(BaseModel):
+    email: Email
+
+
+class ResetPasswordIn(BaseModel):
+    email: Email
+    code: str = Field(pattern=r"^\d{6}$")
+    new_password: Password
+
+
+class ChangePasswordIn(BaseModel):
+    current_password: str = Field(max_length=128)
+    new_password: Password
 
 
 class UserOut(BaseModel):
@@ -52,8 +73,7 @@ class UserOut(BaseModel):
     created_at: datetime
 
 
-class LoginOut(AccessTokenOut):
-    refresh_token: str
+class LoginOut(TokenPairOut):
     user: UserOut
 
 
