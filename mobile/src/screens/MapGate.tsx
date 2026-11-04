@@ -10,10 +10,11 @@ export function MapGate() {
   if (isRunningInExpoGo()) {
     return (
       <View style={styles.box}>
-        <Text style={styles.title}>The map needs the CivicPulse development build</Text>
+        <Text style={styles.title}>The map does not work in Expo Go</Text>
         <Text style={styles.text}>
-          Expo Go does not include the map library. Reporting and My Reports still work here. To see the map,
-          install the development build described in mobile/README.md.
+          You opened CivicPulse inside Expo Go, which does not include the map library. Reporting and My Reports
+          still work here. To see the map, close Expo Go and open the CivicPulse app itself from your phone's app
+          list.
         </Text>
       </View>
     );
