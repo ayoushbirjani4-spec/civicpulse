@@ -30,14 +30,16 @@ def _query():
             func.ST_Y(func.geometry(Report.location)),
             func.ST_X(func.geometry(Report.location)),
             Image.storage_name,
+            Pin.status,
         )
         .join(Category, Category.id == Report.category_id)
         .outerjoin(Image, and_(Image.report_id == Report.id, Image.kind == "report"))
+        .outerjoin(Pin, Pin.id == Report.pin_id)
     )
 
 
 def _out(row) -> ReportOut:
-    report, category_name, lat, lng, storage_name = row
+    report, category_name, lat, lng, storage_name, pin_status = row
     return ReportOut(
         id=report.id,
         client_uuid=report.client_uuid,
@@ -53,6 +55,7 @@ def _out(row) -> ReportOut:
         created_at=report.created_at,
         state=report.state,
         photo_url=images.url_for(storage_name) if storage_name else None,
+        pin_status=pin_status,
     )
 
 
