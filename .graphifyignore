@@ -1,0 +1,12 @@
+# Generated or vendored: keep out of the graph
+node_modules/
+.expo/
+__pycache__/
+.venv/
+venv/
+dist/
+build/
+web-build/
+graphify-out/
+*.lock
+package-lock.json
