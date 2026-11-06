@@ -2,6 +2,8 @@
 import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { POTHOLE } from './sample-photos';
+
 // expo-sqlite
 export async function openDatabaseAsync() {
   return {
@@ -37,7 +39,7 @@ export function useCameraPermissions() {
   return [{ granted: true }, async () => ({ granted: true })];
 }
 export const CameraView = forwardRef(function CameraView({ style, onCameraReady }, ref) {
-  useImperativeHandle(ref, () => ({ takePictureAsync: async () => ({ uri: 'https://picsum.photos/seed/pothole9/800/600' }) }));
+  useImperativeHandle(ref, () => ({ takePictureAsync: async () => ({ uri: POTHOLE }) }));
   useEffect(() => onCameraReady?.(), []);
   return <View style={[style, { backgroundColor: '#2b3440' }]} />;
 });

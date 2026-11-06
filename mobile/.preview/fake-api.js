@@ -1,3 +1,4 @@
+import { DEBRIS, DRAIN, POTHOLE } from './sample-photos';
 // Web preview only: answers the app's API calls with sample data so screens can be checked on a laptop.
 const user = {
   id: 'u1',
@@ -9,10 +10,10 @@ const user = {
 };
 const ago = (h) => new Date(Date.now() - h * 3600_000).toISOString();
 const reports = [
-  { id: '4a65f666-6131-4331-b059-271913cf4a85', category_name: 'Pothole', state: 'received', pin_status: 'open', captured_at: ago(0.3), photo_url: 'https://picsum.photos/seed/road1/200', is_mocked: false, description: null },
-  { id: '9c1e2b07-5d3a-4f6e-8a21-7b0c4d9e1f32', category_name: 'Blocked drain', state: 'received', pin_status: 'pending_repair', captured_at: ago(26), photo_url: 'https://picsum.photos/seed/drain2/200', is_mocked: false, description: null },
+  { id: '4a65f666-6131-4331-b059-271913cf4a85', category_name: 'Pothole', state: 'received', pin_status: 'open', captured_at: ago(0.3), photo_url: POTHOLE, is_mocked: false, description: null },
+  { id: '9c1e2b07-5d3a-4f6e-8a21-7b0c4d9e1f32', category_name: 'Blocked drain', state: 'received', pin_status: 'pending_repair', captured_at: ago(26), photo_url: DRAIN, is_mocked: false, description: null },
   { id: 'b37d90aa-12c4-4e8b-9f05-3e6a7c2d8b14', category_name: 'Waterlogged road', state: 'merged', pin_status: 'closed', captured_at: ago(24 * 6), photo_url: null, is_mocked: false, description: null },
-  { id: '0f82c5e1-7a9b-4c3d-8e6f-1a2b3c4d5e6f', category_name: 'Fallen branch or debris', state: 'rejected', pin_status: 'open', captured_at: ago(24 * 12), photo_url: 'https://picsum.photos/seed/tree4/200', is_mocked: true, description: null },
+  { id: '0f82c5e1-7a9b-4c3d-8e6f-1a2b3c4d5e6f', category_name: 'Fallen branch or debris', state: 'rejected', pin_status: 'open', captured_at: ago(24 * 12), photo_url: DEBRIS, is_mocked: true, description: null },
 ];
 const categories = [
   { id: 'c1', slug: 'pothole', name: 'Pothole', department: 'roads' },
@@ -24,7 +25,7 @@ const categories = [
 const pin = (id, lng, lat, status, n, cat) => ({
   type: 'Feature',
   geometry: { type: 'Point', coordinates: [lng, lat] },
-  properties: { id, status, severity: n > 2 ? 4 : null, supporter_count: n, category_id: 'c1', category_name: cat, follows_pin_id: null, thumbnail_url: `https://picsum.photos/seed/${id}/400/240` },
+  properties: { id, status, severity: n > 2 ? 4 : null, supporter_count: n, category_id: 'c1', category_name: cat, follows_pin_id: null, thumbnail_url: cat.includes('drain') ? DRAIN : POTHOLE },
 });
 const pins = {
   type: 'FeatureCollection',
@@ -46,7 +47,11 @@ function route(method, path) {
   if (path.startsWith('/reports/mine')) return [200, { items: empty ? [] : reports, limit: 20, offset: 0 }];
   if (path.startsWith('/categories')) return [200, categories];
   if (path.startsWith('/pins/')) return [200, pins.features.find((f) => path.includes(f.properties.id)) ?? pins.features[0]];
-  if (path.startsWith('/pins')) return [200, pins];
+  if (path.startsWith('/pins')) {
+    // Like the server: only the statuses asked for (open and pending repair by default).
+    const asked = (new URLSearchParams(path.split('?')[1] ?? '').get('status') ?? 'open,pending_repair').split(',');
+    return [200, { ...pins, features: pins.features.filter((f) => asked.includes(f.properties.status)) }];
+  }
   if (path.startsWith('/health')) return [200, { status: 'ok' }];
   if (method === 'POST') return [204, null];
   return [404, { detail: 'not_found' }];
