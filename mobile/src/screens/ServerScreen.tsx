@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 
-import { getApiUrl, NetworkError, setApiUrl } from '../api/client';
+import { findServer, getApiUrl, NetworkError, setApiUrl } from '../api/client';
 import { Button, errorMessage, Field, FormHeader, Message, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function ServerScreen({ navigation }: ScreenProps<'Server'>) {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [found, setFound] = useState<string | null>(null);
 
   useEffect(() => {
     getApiUrl().then(setUrl);
@@ -16,6 +18,7 @@ export function ServerScreen({ navigation }: ScreenProps<'Server'>) {
   async function save() {
     setBusy(true);
     setError(null);
+    setFound(null);
     try {
       await setApiUrl(url);
       navigation.goBack();
@@ -30,11 +33,28 @@ export function ServerScreen({ navigation }: ScreenProps<'Server'>) {
     }
   }
 
+  async function find() {
+    setSearching(true);
+    setError(null);
+    setFound(null);
+    try {
+      const address = await findServer(url);
+      if (address) {
+        setUrl(address);
+        setFound(`Found and saved the server at ${address}`);
+      } else {
+        setError('No CivicPulse server found on this Wi-Fi network. Check that the laptop is on and the server is running.');
+      }
+    } finally {
+      setSearching(false);
+    }
+  }
+
   return (
     <Screen>
       <FormHeader
         title="Server address"
-        subtitle="The laptop running the CivicPulse server, on the same Wi-Fi. On the laptop, run ipconfig and use its IPv4 address with port 8000."
+        subtitle="The laptop running the CivicPulse server, on the same Wi-Fi. The app looks for it by itself when the address changes; you can also search now or type the address."
       />
       <Field
         label="Server address"
@@ -43,10 +63,12 @@ export function ServerScreen({ navigation }: ScreenProps<'Server'>) {
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
-        placeholder="http://192.168.1.3:8000"
+        placeholder="http://192.168.1.7:8000"
       />
       <Message text={error} />
-      <Button title="Check and save" onPress={save} busy={busy} />
+      <Message text={found} success />
+      <Button title="Find automatically" onPress={find} busy={searching} disabled={busy} />
+      <Button title="Check and save" secondary onPress={save} busy={busy} disabled={searching} />
     </Screen>
   );
 }
