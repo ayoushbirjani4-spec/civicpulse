@@ -73,6 +73,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
       <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
       <Button title="Create account" onPress={submit} busy={busy} />
+      <Button title="Server address" link onPress={() => navigation.navigate('Server')} />
     </Screen>
   );
 }

@@ -57,6 +57,8 @@ globalThis.fetch = async (input, init = {}) => {
   const url = String(input);
   if (!/:8000\//.test(url)) return realFetch(input, init);
   const path = url.replace(/^https?:\/\/[^/]+/, '');
+  // ?offline makes every call fail as if the server were unreachable.
+  if (new URLSearchParams(globalThis.location?.search ?? '').has('offline')) throw new TypeError('Network request failed');
   const [status, body] = route((init.method ?? 'GET').toUpperCase(), path);
   await new Promise((r) => setTimeout(r, 250));
   return new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

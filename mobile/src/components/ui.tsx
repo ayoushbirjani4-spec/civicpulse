@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { ComponentProps, ReactNode, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,7 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ApiError, NetworkError } from '../api/client';
+import { ApiError, currentApiUrl, NetworkError } from '../api/client';
 import { color, family, ICON, radius, space, type } from '../theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -88,8 +89,14 @@ export function PasswordRules({ password, confirm }: { password: string; confirm
   );
 }
 
+// Messages starting with this get a link to the Server address screen (see Message).
+const UNREACHABLE = 'Could not reach the server';
+
 export function errorMessage(error: unknown): string {
-  if (error instanceof NetworkError) return 'Could not reach the server. Check your connection.';
+  // The laptop running the server often gets a new Wi-Fi address, so say which address failed.
+  if (error instanceof NetworkError) {
+    return `${UNREACHABLE} at ${currentApiUrl()}. Check that the phone is on the same Wi-Fi as the laptop, or change the server address.`;
+  }
   if (error instanceof ApiError) return MESSAGES[error.code] ?? 'Something went wrong. Try again.';
   return 'Something went wrong. Try again.';
 }
@@ -199,7 +206,9 @@ export function Button({ title, onPress, busy, disabled, secondary, link, danger
 }
 
 export function Message({ text, success }: { text: string | null; success?: boolean }) {
+  const navigation = useNavigation<{ navigate: (screen: 'Server') => void }>();
   if (!text) return null;
+  const unreachable = !success && text.startsWith(UNREACHABLE);
   return (
     <View style={[styles.message, success ? styles.messageOk : styles.messageError]} accessibilityLiveRegion="polite">
       <Ionicons
@@ -207,7 +216,14 @@ export function Message({ text, success }: { text: string | null; success?: bool
         size={ICON}
         color={success ? color.positive : color.negative}
       />
-      <Text style={[styles.messageText, { color: success ? color.positive : color.negative }]}>{text}</Text>
+      <View style={styles.messageBody}>
+        <Text style={[styles.messageText, { color: success ? color.positive : color.negative }]}>{text}</Text>
+        {unreachable ? (
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={() => navigation.navigate('Server')}>
+            <Text style={styles.messageLink}>Change server address</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -336,7 +352,9 @@ const styles = StyleSheet.create({
   message: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, padding: space.md, borderRadius: radius.control },
   messageOk: { backgroundColor: color.positiveSoft },
   messageError: { backgroundColor: color.negativeSoft },
-  messageText: { flex: 1, fontSize: 14, lineHeight: 20 },
+  messageBody: { flex: 1, gap: space.sm },
+  messageText: { fontSize: 14, lineHeight: 20 },
+  messageLink: { fontFamily: family.medium, fontSize: 14, color: color.text, textDecorationLine: 'underline' },
   rules: { gap: space.xs },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   ruleOk: { color: color.positive },

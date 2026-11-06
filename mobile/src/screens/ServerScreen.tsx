@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { getApiUrl, setApiUrl } from '../api/client';
+import { getApiUrl, NetworkError, setApiUrl } from '../api/client';
 import { Button, errorMessage, Field, FormHeader, Message, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
@@ -20,7 +20,11 @@ export function ServerScreen({ navigation }: ScreenProps<'Server'>) {
       await setApiUrl(url);
       navigation.goBack();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(
+        e instanceof NetworkError
+          ? `No CivicPulse server answered at ${url.trim()}. Check the address and that the laptop is on the same Wi-Fi.`
+          : errorMessage(e),
+      );
     } finally {
       setBusy(false);
     }

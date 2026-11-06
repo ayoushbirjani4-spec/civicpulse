@@ -14,6 +14,11 @@ const apiUrlLoaded = SecureStore.getItemAsync(API_URL_KEY)
   })
   .catch(() => {});
 
+/** The address in use right now, for messages. May still be the default for a moment at start-up. */
+export function currentApiUrl() {
+  return apiUrl;
+}
+
 export async function getApiUrl() {
   await apiUrlLoaded;
   return apiUrl;
