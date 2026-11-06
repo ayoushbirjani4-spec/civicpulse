@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
+import { Button, errorMessage, Field, FormHeader, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
@@ -36,14 +36,20 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
 
   return (
     <Screen>
+      <FormHeader
+        title="Create your account"
+        subtitle="You need an account to send reports and follow their repair"
+      />
       <Field
         label="Display name (shown on the leaderboard)"
+        placeholder="e.g. Ayesha K."
         value={displayName}
         onChangeText={setDisplayName}
         maxLength={40}
       />
       <Field
         label="Email"
+        placeholder="you@example.com"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -67,6 +73,7 @@ export function RegisterScreen({ navigation }: ScreenProps<'Register'>) {
       <PasswordRules password={password} confirm={confirm} />
       <Message text={error} />
       <Button title="Create account" onPress={submit} busy={busy} />
+      <Button title="Server address" link onPress={() => navigation.navigate('Server')} />
     </Screen>
   );
 }

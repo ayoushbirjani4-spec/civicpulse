@@ -110,6 +110,17 @@ class ReportOut(BaseModel):
     created_at: datetime
     state: str
     photo_url: str | None
+    # The hazard this report joined: open, pending_repair or closed.
+    pin_status: str | None = None
+
+
+class ImpactOut(BaseModel):
+    reports: int
+    hazards: int
+    # Other people who reported a hazard this user reported too.
+    confirmations: int
+    in_repair: int
+    fixed: int
 
 
 class ReportPage(BaseModel):

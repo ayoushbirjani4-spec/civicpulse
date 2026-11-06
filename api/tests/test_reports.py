@@ -162,7 +162,8 @@ def test_failed_save_leaves_no_orphan_file(client, make_user, pothole, monkeypat
     def broken(*args, **kwargs):
         raise RuntimeError("database went away")
 
-    monkeypatch.setattr("app.routers.reports.Pin", broken)
+    # Fail when the pin is created, after the photo is on disk; the query still needs Pin itself.
+    monkeypatch.setattr(Pin, "__init__", broken)
     with pytest.raises(RuntimeError):
         send(client, make_user(), pothole)
     assert set(os.listdir(config.MEDIA_DIR)) == before
