@@ -3,14 +3,15 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
-import { Button, errorMessage, Field, Message, Screen } from '../components/ui';
+import { Button, Card, errorMessage, Field, FormHeader, Icon, Message, Screen, StatusDot, Text } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 import { Category, loadCategories } from '../reports/categories';
 import { enqueue } from '../reports/queue';
 import { processQueue } from '../reports/uploader';
+import { color, family, radius, space, type } from '../theme';
 
 type Fix = { lat: number; lng: number; accuracy: number; mocked: boolean };
 
@@ -67,7 +68,7 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
 
   async function capture() {
     if (!camera.current || !ready) return;
-    const shot = await camera.current.takePictureAsync({ quality: 0.8, exif: false });
+    const shot = await camera.current.takePictureAsync({ quality: 0.6, exif: false });
     if (!shot) return;
     setPhoto({ uri: shot.uri, takenAt: new Date().toISOString() });
     locate();
@@ -98,7 +99,7 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
         photo_uri: kept.uri,
       });
       processQueue(user.id).catch(() => {});
-      navigation.goBack();
+      navigation.popTo('MyReports', { thanks: true });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -110,7 +111,10 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
   if (!cameraPermission.granted) {
     return (
       <Screen>
-        <Text style={styles.text}>CivicPulse needs the camera to photograph the hazard. Photos are taken in the app only.</Text>
+        <FormHeader
+          title="Allow the camera"
+          subtitle="CivicPulse needs the camera to photograph the hazard. Photos are taken in the app only."
+        />
         <Button title="Allow camera" onPress={requestCameraPermission} />
       </Screen>
     );
@@ -120,63 +124,138 @@ export function NewReportScreen({ navigation }: ScreenProps<'NewReport'>) {
     return (
       <View style={styles.fill}>
         <CameraView ref={camera} style={styles.fill} facing="back" onCameraReady={() => setReady(true)} />
-        <Text style={styles.tip}>Stand about 2 m away and include a kerb, wall or drain cover.</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Take photo" style={styles.shutter} onPress={capture} />
+        <View style={styles.tip}>
+          <Text style={styles.tipText}>Stand about 2 m away and include a kerb, wall or drain cover</Text>
+        </View>
+        <View style={styles.shutterBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Take photo"
+            style={({ pressed }) => [styles.shutter, pressed && styles.shutterPressed]}
+            onPress={capture}
+          >
+            <View style={styles.shutterInner} />
+          </Pressable>
+        </View>
       </View>
     );
   }
 
+  const locating = !fix && !locationError;
   return (
     <Screen>
-      <Image source={{ uri: photo.uri }} style={styles.preview} />
-      <Button title="Retake" secondary onPress={() => setPhoto(null)} />
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.chips}>
-        {categories.map((c) => (
-          <Pressable
-            key={c.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected: c.id === categoryId }}
-            onPress={() => setCategoryId(c.id)}
-            style={[styles.chip, c.id === categoryId && styles.chipOn]}
-          >
-            <Text style={c.id === categoryId ? styles.chipTextOn : undefined}>{c.name}</Text>
-          </Pressable>
-        ))}
+      <View>
+        <Image source={{ uri: photo.uri }} style={styles.preview} />
+        <Pressable accessibilityRole="button" style={styles.retake} onPress={() => setPhoto(null)}>
+          <Icon name="camera-reverse-outline" size={16} color={color.onAccent} />
+          <Text style={styles.retakeText}>Retake</Text>
+        </Pressable>
       </View>
-      <Field label="Note (optional)" value={description} onChangeText={setDescription} maxLength={1000} multiline />
-      <Message
-        text={fix ? `Position recorded, accurate to about ${Math.round(fix.accuracy)} m${fix.mocked ? ' (mock location detected)' : ''}.` : locationError ?? 'Getting your position...'}
-        success={!!fix}
+
+      <View style={styles.group}>
+        <Text style={type.label}>Type of hazard</Text>
+        <View style={styles.chips}>
+          {categories.map((c) => {
+            const on = c.id === categoryId;
+            return (
+              <Pressable
+                key={c.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => setCategoryId(c.id)}
+                style={[styles.chip, on && styles.chipOn]}
+              >
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <Card style={styles.location}>
+        <View style={styles.locationHead}>
+          <StatusDot
+            label={fix ? 'Location found' : locating ? 'Finding your position' : 'No location yet'}
+            tint={fix ? color.positive : locating ? color.text2 : color.negative}
+          />
+          {fix ? <Text style={type.meta}>±{Math.round(fix.accuracy)} m</Text> : null}
+        </View>
+        <Text style={type.small}>
+          {fix
+            ? fix.mocked
+              ? 'A mock location app was detected, so this report will be flagged'
+              : 'Saved with the photo so the hazard lands at the right spot on the map'
+            : (locationError ?? 'Stay where the hazard is for a moment')}
+        </Text>
+        {locationError ? <Button title="Try again" link onPress={locate} /> : null}
+      </Card>
+
+      <Field
+        label="Note (optional)"
+        placeholder="Deep pothole near the bus stop"
+        value={description}
+        onChangeText={setDescription}
+        maxLength={1000}
+        multiline
       />
-      {locationError ? <Button title="Try location again" secondary onPress={locate} /> : null}
       <Message text={error} />
-      <Button title="Send" onPress={send} busy={busy} disabled={!fix || !categoryId} />
-      <Text style={styles.hint}>With no signal, the report waits on this phone and uploads later.</Text>
+      <Button title="Send report" onPress={send} busy={busy} disabled={!fix || !categoryId} />
+      <Text style={type.small}>With no signal, the report waits on this phone and uploads later</Text>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#000' },
-  text: { fontSize: 16 },
-  tip: { position: 'absolute', top: 16, left: 16, right: 16, color: '#fff', textAlign: 'center', fontSize: 15 },
-  shutter: {
+  tip: {
     position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 6,
-    borderColor: '#fff',
-    backgroundColor: '#ffffff55',
+    top: space.lg,
+    left: space.lg,
+    right: space.lg,
+    backgroundColor: 'rgba(23,23,23,0.72)',
+    borderRadius: radius.control,
+    padding: space.md,
   },
-  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: 8, backgroundColor: '#ddd' },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#0b6e4f', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
-  chipOn: { backgroundColor: '#0b6e4f' },
-  chipTextOn: { color: '#fff' },
-  hint: { color: '#555', fontSize: 13, marginTop: 8 },
+  tipText: { color: '#fff', fontSize: 14, lineHeight: 20 },
+  shutterBar: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center' },
+  shutter: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 4,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterPressed: { transform: [{ scale: 0.96 }] },
+  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#fff' },
+  preview: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.card, backgroundColor: color.raised },
+  retake: {
+    position: 'absolute',
+    top: space.md,
+    right: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(23,23,23,0.72)',
+    paddingHorizontal: space.md,
+    paddingVertical: 6,
+    borderRadius: radius.small,
+  },
+  retakeText: { color: '#fff', fontFamily: family.medium, fontSize: 13 },
+  group: { gap: space.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  chip: {
+    borderWidth: 1,
+    borderColor: color.border,
+    backgroundColor: color.card,
+    borderRadius: radius.control,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+  },
+  chipOn: { backgroundColor: color.text, borderColor: color.text },
+  chipText: { fontFamily: family.medium, fontSize: 14, color: color.text },
+  chipTextOn: { color: color.card },
+  location: { gap: space.xs },
+  locationHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });

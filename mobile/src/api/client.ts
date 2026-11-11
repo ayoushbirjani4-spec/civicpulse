@@ -1,6 +1,73 @@
-import * as session from '../auth/sessionStore';
+import * as SecureStore from 'expo-secure-store';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+import * as session from '../auth/sessionStore';
+import { discover } from './discovery';
+
+const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+const API_URL_KEY = 'civicpulse.api_url';
+
+// The laptop running the server gets a new Wi-Fi address now and then, so the
+// installed app lets the user change it instead of needing a new build.
+let apiUrl = DEFAULT_API_URL;
+const apiUrlLoaded = SecureStore.getItemAsync(API_URL_KEY)
+  .then((saved) => {
+    if (saved) apiUrl = saved;
+  })
+  .catch(() => {});
+
+/** The address in use right now, for messages. May still be the default for a moment at start-up. */
+export function currentApiUrl() {
+  return apiUrl;
+}
+
+export async function getApiUrl() {
+  await apiUrlLoaded;
+  return apiUrl;
+}
+
+/** Saves the server address after checking that a CivicPulse server answers there. */
+export async function setApiUrl(input: string) {
+  const url = input.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\/[^/\s]+$/.test(url)) throw new ApiError(0, 'bad_server_address');
+  try {
+    const response = await fetch(`${url}/health`);
+    if (!response.ok) throw new Error();
+  } catch {
+    throw new NetworkError('network_error');
+  }
+  await SecureStore.setItemAsync(API_URL_KEY, url);
+  apiUrl = url;
+}
+
+// When the saved address stops answering, look for the server elsewhere on the same Wi-Fi network.
+// One search at a time, and at most one a minute, so a phone with no signal does not keep scanning.
+let searching: Promise<string | null> | null = null;
+let lastSearch = 0;
+
+async function search(from: string) {
+  const found = await discover(from, fetch);
+  if (found) {
+    await SecureStore.setItemAsync(API_URL_KEY, found);
+    apiUrl = found;
+  }
+  return found;
+}
+
+function rediscover(failed: string): Promise<string | null> {
+  if (searching) return searching;
+  if (Date.now() - lastSearch < 60_000) return Promise.resolve(null);
+  lastSearch = Date.now();
+  searching = search(failed).finally(() => {
+    searching = null;
+  });
+  return searching;
+}
+
+/** Looks for a CivicPulse server on this Wi-Fi network now, starting near `near`. Saves and returns it. */
+export async function findServer(near?: string): Promise<string | null> {
+  lastSearch = Date.now();
+  return search((near ?? (await getApiUrl())).trim().replace(/\/+$/, ''));
+}
 
 /** The server answered with an error. `code` is the server's `detail` string. */
 export class ApiError extends Error {
@@ -32,13 +99,20 @@ async function send(path: string, { method = 'GET', body }: Options, token: stri
   // fetch sets the multipart boundary itself, so a form must not get a Content-Type here.
   if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
+  const base = await getApiUrl();
+  const init = { method, headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) };
   try {
-    return await fetch(`${API_URL}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
-    });
+    return await fetch(`${base}${path}`, init);
   } catch {
+    // The laptop may have a new address: find it and try once more there.
+    const found = await rediscover(base);
+    if (found && found !== base) {
+      try {
+        return await fetch(`${found}${path}`, init);
+      } catch {
+        // Fall through to the network error below.
+      }
+    }
     throw new NetworkError('network_error');
   }
 }

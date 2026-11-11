@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app import sessions
 from app.db import get_db
 from app.deps import get_current_session, get_current_user, limit_writes
-from app.models import AuthSession, Device, User
+from app.models import AuthSession, Device, Pin, Report, User
 from app.rate_limit import enforce
 from app.routers.auth import check_password
-from app.schemas import ChangePasswordIn, DeviceIn, ProfilePatch, UserOut
+from app.schemas import ChangePasswordIn, DeviceIn, ImpactOut, ProfilePatch, UserOut
 from app.security import hash_password, verify_password
 
 router = APIRouter(tags=["users"])
@@ -18,6 +18,24 @@ router = APIRouter(tags=["users"])
 @router.get("/me", response_model=UserOut)
 def read_me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.get("/me/impact", response_model=ImpactOut)
+def my_impact(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Totals for the home screen. Rejected reports do not count."""
+    mine = select(Report.pin_id).where(Report.user_id == user.id, Report.state != "rejected")
+    reports = db.scalar(select(func.count()).select_from(mine.subquery()))
+    hazards, confirmations, in_repair, fixed = db.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(Pin.supporter_count - 1), 0),
+            func.count().filter(Pin.status == "pending_repair"),
+            func.count().filter(Pin.status == "closed"),
+        ).where(Pin.id.in_(mine.where(Report.pin_id.is_not(None))))
+    ).one()
+    return ImpactOut(
+        reports=reports, hazards=hazards, confirmations=confirmations, in_repair=in_repair, fixed=fixed
+    )
 
 
 @router.patch("/me", response_model=UserOut, dependencies=[Depends(limit_writes)])

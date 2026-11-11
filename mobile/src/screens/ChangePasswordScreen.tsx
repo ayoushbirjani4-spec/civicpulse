@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
 
 import { api } from '../api/client';
-import { Button, errorMessage, Field, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
+import { Button, errorMessage, Field, FormHeader, Message, newPasswordProblem, PasswordRules, Screen } from '../components/ui';
 import type { ScreenProps } from '../navigation';
 
 export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword'>) {
@@ -36,7 +36,10 @@ export function ChangePasswordScreen({ navigation }: ScreenProps<'ChangePassword
 
   return (
     <Screen>
-      <Text>Other phones logged in to this account will be logged out. This phone stays logged in.</Text>
+      <FormHeader
+        title="Change password"
+        subtitle="Other phones logged in to this account will be logged out. This phone stays logged in."
+      />
       <Field
         label="Current password"
         value={current}
